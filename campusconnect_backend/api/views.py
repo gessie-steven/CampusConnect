@@ -8,6 +8,7 @@ from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 from django.contrib.auth import get_user_model
 from django.shortcuts import get_object_or_404
 from django.db.models import Q
+from django.utils import timezone
 
 from .serializers import (
     RegisterSerializer,
@@ -23,10 +24,13 @@ from .serializers import (
     CourseResourceSerializer,
     CourseResourceUploadSerializer,
     GradeSerializer,
-    AnnouncementSerializer
+    AnnouncementSerializer,
+    ChatMessageSerializer,
+    ChatMessageCreateSerializer,
+    NotificationSerializer
 )
 from .permissions import IsStudent, IsTeacher, IsAdmin, IsTeacherOrAdmin, IsModuleTeacherOrAdmin
-from .models import Module, Enrollment, CourseSession, CourseResource, Grade, Announcement
+from .models import Module, Enrollment, CourseSession, CourseResource, Grade, Announcement, ChatMessage, Notification
 
 User = get_user_model()
 
@@ -967,4 +971,261 @@ def my_announcements(request):
         announcements = announcements.filter(priority=priority)
     
     serializer = AnnouncementSerializer(announcements.order_by('-is_pinned', '-published_date'), many=True)
+    return Response(serializer.data)
+
+
+# ==================== VUES POUR LES MESSAGES ====================
+
+class ChatMessageViewSet(viewsets.ModelViewSet):
+    """
+    ViewSet pour gérer les messages de chat
+    - Les utilisateurs peuvent envoyer et recevoir des messages
+    - Chaque utilisateur ne voit que ses messages (envoyés ou reçus)
+    """
+    queryset = ChatMessage.objects.all()
+    serializer_class = ChatMessageSerializer
+    permission_classes = [IsAuthenticated]
+    
+    def get_serializer_class(self):
+        if self.action == 'create':
+            return ChatMessageCreateSerializer
+        return ChatMessageSerializer
+    
+    def get_queryset(self):
+        """
+        Filtrer les messages pour ne montrer que ceux de l'utilisateur connecté
+        """
+        user = self.request.user
+        
+        # L'utilisateur voit les messages qu'il a envoyés et reçus
+        queryset = ChatMessage.objects.filter(
+            Q(sender=user) | Q(recipient=user)
+        )
+        
+        # Filtres optionnels
+        other_user_id = self.request.query_params.get('user', None)
+        if other_user_id:
+            # Messages avec un utilisateur spécifique
+            queryset = queryset.filter(
+                Q(sender=user, recipient_id=other_user_id) |
+                Q(sender_id=other_user_id, recipient=user)
+            )
+        
+        is_read = self.request.query_params.get('is_read', None)
+        if is_read is not None:
+            # Filtrer par statut de lecture (seulement pour les messages reçus)
+            if is_read.lower() == 'true':
+                queryset = queryset.filter(recipient=user, is_read=True)
+            else:
+                queryset = queryset.filter(recipient=user, is_read=False)
+        
+        return queryset.order_by('-created_at')
+    
+    def perform_create(self, serializer):
+        """
+        Créer un message avec l'utilisateur connecté comme expéditeur
+        """
+        recipient_id = serializer.validated_data['recipient_id']
+        message_text = serializer.validated_data['message']
+        
+        from django.contrib.auth import get_user_model
+        User = get_user_model()
+        recipient = get_object_or_404(User, id=recipient_id)
+        
+        # Créer le message
+        chat_message = ChatMessage.objects.create(
+            sender=self.request.user,
+            recipient=recipient,
+            message=message_text
+        )
+        
+        # Créer une notification pour le destinataire
+        Notification.create_for_user(
+            user=recipient,
+            notification_type='message',
+            title='Nouveau message',
+            content=f"Vous avez reçu un message de {self.request.user.get_full_name() or self.request.user.username}",
+            link=f"/messages/{chat_message.id}/"
+        )
+    
+    @action(detail=True, methods=['post'], permission_classes=[IsAuthenticated])
+    def mark_as_read(self, request, pk=None):
+        """
+        Marquer un message comme lu
+        POST /api/messages/{id}/mark_as_read/
+        """
+        message = self.get_object()
+        
+        # Seul le destinataire peut marquer le message comme lu
+        if message.recipient != request.user:
+            return Response({
+                'error': 'Vous ne pouvez marquer comme lu que les messages que vous avez reçus.'
+            }, status=status.HTTP_403_FORBIDDEN)
+        
+        message.mark_as_read()
+        serializer = self.get_serializer(message)
+        return Response(serializer.data)
+    
+    @action(detail=False, methods=['get'], permission_classes=[IsAuthenticated])
+    def conversations(self, request):
+        """
+        Récupérer la liste des conversations (utilisateurs avec qui on a échangé)
+        GET /api/messages/conversations/
+        """
+        user = request.user
+        
+        # Récupérer les IDs des utilisateurs avec qui on a échangé
+        sent_to = ChatMessage.objects.filter(sender=user).values_list('recipient_id', flat=True).distinct()
+        received_from = ChatMessage.objects.filter(recipient=user).values_list('sender_id', flat=True).distinct()
+        
+        # Combiner et obtenir les utilisateurs uniques
+        user_ids = set(list(sent_to) + list(received_from))
+        
+        from django.contrib.auth import get_user_model
+        User = get_user_model()
+        users = User.objects.filter(id__in=user_ids)
+        
+        # Pour chaque utilisateur, récupérer le dernier message
+        conversations = []
+        for other_user in users:
+            last_message = ChatMessage.objects.filter(
+                Q(sender=user, recipient=other_user) | Q(sender=other_user, recipient=user)
+            ).order_by('-created_at').first()
+            
+            unread_count = ChatMessage.objects.filter(
+                sender=other_user,
+                recipient=user,
+                is_read=False
+            ).count()
+            
+            conversations.append({
+                'user': UserSerializer(other_user).data,
+                'last_message': ChatMessageSerializer(last_message).data if last_message else None,
+                'unread_count': unread_count
+            })
+        
+        # Trier par date du dernier message
+        conversations.sort(key=lambda x: x['last_message']['created_at'] if x['last_message'] else '', reverse=True)
+        
+        return Response(conversations)
+
+
+# ==================== VUES POUR LES NOTIFICATIONS ====================
+
+class NotificationViewSet(viewsets.ReadOnlyModelViewSet):
+    """
+    ViewSet pour gérer les notifications (lecture seule pour les utilisateurs)
+    - Les utilisateurs peuvent uniquement lire leurs propres notifications
+    - Les admins peuvent créer des notifications
+    """
+    queryset = Notification.objects.all()
+    serializer_class = NotificationSerializer
+    permission_classes = [IsAuthenticated]
+    
+    def get_queryset(self):
+        """
+        Filtrer les notifications pour ne montrer que celles de l'utilisateur connecté
+        """
+        user = self.request.user
+        
+        queryset = Notification.objects.filter(recipient=user)
+        
+        # Filtres optionnels
+        notification_type = self.request.query_params.get('type', None)
+        if notification_type:
+            queryset = queryset.filter(notification_type=notification_type)
+        
+        is_read = self.request.query_params.get('is_read', None)
+        if is_read is not None:
+            queryset = queryset.filter(is_read=is_read.lower() == 'true')
+        
+        return queryset.order_by('-created_at')
+    
+    @action(detail=True, methods=['post'], permission_classes=[IsAuthenticated])
+    def mark_as_read(self, request, pk=None):
+        """
+        Marquer une notification comme lue
+        POST /api/notifications/{id}/mark_as_read/
+        """
+        notification = self.get_object()
+        
+        # Seul le destinataire peut marquer la notification comme lue
+        if notification.recipient != request.user:
+            return Response({
+                'error': 'Vous ne pouvez marquer comme lu que vos propres notifications.'
+            }, status=status.HTTP_403_FORBIDDEN)
+        
+        notification.mark_as_read()
+        serializer = self.get_serializer(notification)
+        return Response(serializer.data)
+    
+    @action(detail=False, methods=['post'], permission_classes=[IsAuthenticated])
+    def mark_all_as_read(self, request):
+        """
+        Marquer toutes les notifications comme lues
+        POST /api/notifications/mark_all_as_read/
+        """
+        user = request.user
+        updated = Notification.objects.filter(
+            recipient=user,
+            is_read=False
+        ).update(
+            is_read=True,
+            read_at=timezone.now()
+        )
+        
+        return Response({
+            'message': f'{updated} notification(s) marquée(s) comme lue(s).'
+        })
+    
+    @action(detail=False, methods=['get'], permission_classes=[IsAuthenticated])
+    def unread_count(self, request):
+        """
+        Récupérer le nombre de notifications non lues
+        GET /api/notifications/unread_count/
+        """
+        user = request.user
+        count = Notification.objects.filter(
+            recipient=user,
+            is_read=False
+        ).count()
+        
+        return Response({
+            'unread_count': count
+        })
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def my_messages(request):
+    """
+    Endpoint pour récupérer les messages récents de l'utilisateur
+    GET /api/messages/my/
+    """
+    user = request.user
+    
+    # Récupérer les messages récents (envoyés et reçus)
+    messages = ChatMessage.objects.filter(
+        Q(sender=user) | Q(recipient=user)
+    ).order_by('-created_at')[:50]  # Limiter à 50 messages récents
+    
+    serializer = ChatMessageSerializer(messages, many=True)
+    return Response(serializer.data)
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def my_unread_notifications(request):
+    """
+    Endpoint pour récupérer les notifications non lues
+    GET /api/notifications/unread/
+    """
+    user = request.user
+    
+    notifications = Notification.objects.filter(
+        recipient=user,
+        is_read=False
+    ).order_by('-created_at')
+    
+    serializer = NotificationSerializer(notifications, many=True)
     return Response(serializer.data)

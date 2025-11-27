@@ -677,3 +677,174 @@ class Announcement(models.Model):
     def is_visible(self):
         """Vérifie si l'annonce est visible (active et non expirée)"""
         return self.is_active and not self.is_expired
+
+
+class ChatMessage(models.Model):
+    """
+    Modèle représentant un message de chat entre deux utilisateurs
+    """
+    sender = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name='sent_messages',
+        verbose_name='Expéditeur'
+    )
+    recipient = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name='received_messages',
+        verbose_name='Destinataire'
+    )
+    message = models.TextField(
+        verbose_name='Message'
+    )
+    is_read = models.BooleanField(
+        default=False,
+        verbose_name='Lu',
+        help_text='Indique si le message a été lu par le destinataire'
+    )
+    read_at = models.DateTimeField(
+        blank=True,
+        null=True,
+        verbose_name='Date de lecture',
+        help_text='Date et heure à laquelle le message a été lu'
+    )
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name='Date d\'envoi')
+    updated_at = models.DateTimeField(auto_now=True, verbose_name='Date de modification')
+    
+    class Meta:
+        verbose_name = 'Message'
+        verbose_name_plural = 'Messages'
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['sender', 'recipient']),
+            models.Index(fields=['recipient', 'is_read']),
+            models.Index(fields=['created_at']),
+        ]
+    
+    def __str__(self):
+        return f"{self.sender.username} -> {self.recipient.username}: {self.message[:50]}"
+    
+    def mark_as_read(self):
+        """Marquer le message comme lu"""
+        if not self.is_read:
+            from django.utils import timezone
+            self.is_read = True
+            self.read_at = timezone.now()
+            self.save(update_fields=['is_read', 'read_at'])
+
+
+class Notification(models.Model):
+    """
+    Modèle représentant une notification pour un utilisateur
+    """
+    NOTIFICATION_TYPE_CHOICES = [
+        ('announcement', 'Annonce'),
+        ('grade', 'Note'),
+        ('message', 'Message'),
+        ('enrollment', 'Inscription'),
+        ('module', 'Module'),
+        ('session', 'Session de cours'),
+        ('resource', 'Ressource'),
+        ('other', 'Autre'),
+    ]
+    
+    recipient = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name='notifications',
+        verbose_name='Destinataire'
+    )
+    notification_type = models.CharField(
+        max_length=20,
+        choices=NOTIFICATION_TYPE_CHOICES,
+        default='other',
+        verbose_name='Type de notification'
+    )
+    title = models.CharField(
+        max_length=200,
+        verbose_name='Titre'
+    )
+    content = models.TextField(
+        verbose_name='Contenu'
+    )
+    link = models.URLField(
+        blank=True,
+        null=True,
+        verbose_name='Lien',
+        help_text='Lien vers la ressource concernée'
+    )
+    related_module = models.ForeignKey(
+        Module,
+        on_delete=models.SET_NULL,
+        blank=True,
+        null=True,
+        related_name='notifications',
+        verbose_name='Module concerné'
+    )
+    related_grade = models.ForeignKey(
+        Grade,
+        on_delete=models.SET_NULL,
+        blank=True,
+        null=True,
+        related_name='notifications',
+        verbose_name='Note concernée'
+    )
+    related_announcement = models.ForeignKey(
+        Announcement,
+        on_delete=models.SET_NULL,
+        blank=True,
+        null=True,
+        related_name='notifications',
+        verbose_name='Annonce concernée'
+    )
+    is_read = models.BooleanField(
+        default=False,
+        verbose_name='Lu',
+        help_text='Indique si la notification a été lue'
+    )
+    read_at = models.DateTimeField(
+        blank=True,
+        null=True,
+        verbose_name='Date de lecture',
+        help_text='Date et heure à laquelle la notification a été lue'
+    )
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name='Date de création')
+    
+    class Meta:
+        verbose_name = 'Notification'
+        verbose_name_plural = 'Notifications'
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['recipient', 'is_read']),
+            models.Index(fields=['notification_type']),
+            models.Index(fields=['created_at']),
+        ]
+    
+    def __str__(self):
+        return f"{self.title} - {self.recipient.username}"
+    
+    def mark_as_read(self):
+        """Marquer la notification comme lue"""
+        if not self.is_read:
+            from django.utils import timezone
+            self.is_read = True
+            self.read_at = timezone.now()
+            self.save(update_fields=['is_read', 'read_at'])
+    
+    @classmethod
+    def create_for_user(cls, user, notification_type, title, content, link=None, 
+                       related_module=None, related_grade=None, related_announcement=None):
+        """
+        Méthode utilitaire pour créer une notification
+        """
+        return cls.objects.create(
+            recipient=user,
+            notification_type=notification_type,
+            title=title,
+            content=content,
+            link=link,
+            related_module=related_module,
+            related_grade=related_grade,
+            related_announcement=related_announcement
+        )

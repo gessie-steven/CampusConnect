@@ -1,6 +1,10 @@
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
-from .models import User, StudentProfile, TeacherProfile, Module, Enrollment, CourseSession, CourseResource, Grade, Announcement
+from .models import (
+    User, StudentProfile, TeacherProfile, Module, Enrollment, 
+    CourseSession, CourseResource, Grade, Announcement, 
+    ChatMessage, Notification
+)
 
 
 @admin.register(User)
@@ -223,5 +227,68 @@ class AnnouncementAdmin(admin.ModelAdmin):
         }),
         ('Dates', {
             'fields': ('published_date', 'created_at', 'updated_at')
+        }),
+    )
+
+
+@admin.register(ChatMessage)
+class ChatMessageAdmin(admin.ModelAdmin):
+    """
+    Administration pour les messages de chat
+    """
+    list_display = ['sender', 'recipient', 'message_preview', 'is_read', 'created_at']
+    list_filter = ['is_read', 'created_at', 'sender', 'recipient']
+    search_fields = [
+        'sender__username', 'sender__email', 'recipient__username', 'recipient__email',
+        'message'
+    ]
+    raw_id_fields = ['sender', 'recipient']
+    readonly_fields = ['created_at', 'updated_at', 'read_at']
+    date_hierarchy = 'created_at'
+    
+    fieldsets = (
+        ('Message', {
+            'fields': ('sender', 'recipient', 'message')
+        }),
+        ('Statut', {
+            'fields': ('is_read', 'read_at')
+        }),
+        ('Dates', {
+            'fields': ('created_at', 'updated_at')
+        }),
+    )
+    
+    def message_preview(self, obj):
+        """Aperçu du message"""
+        return obj.message[:50] + '...' if len(obj.message) > 50 else obj.message
+    message_preview.short_description = 'Message'
+
+
+@admin.register(Notification)
+class NotificationAdmin(admin.ModelAdmin):
+    """
+    Administration pour les notifications
+    """
+    list_display = ['recipient', 'notification_type', 'title', 'is_read', 'created_at']
+    list_filter = ['notification_type', 'is_read', 'created_at', 'recipient']
+    search_fields = [
+        'recipient__username', 'recipient__email', 'title', 'content'
+    ]
+    raw_id_fields = ['recipient', 'related_module', 'related_grade', 'related_announcement']
+    readonly_fields = ['created_at', 'read_at']
+    date_hierarchy = 'created_at'
+    
+    fieldsets = (
+        ('Notification', {
+            'fields': ('recipient', 'notification_type', 'title', 'content', 'link')
+        }),
+        ('Relations', {
+            'fields': ('related_module', 'related_grade', 'related_announcement')
+        }),
+        ('Statut', {
+            'fields': ('is_read', 'read_at')
+        }),
+        ('Dates', {
+            'fields': ('created_at',)
         }),
     )

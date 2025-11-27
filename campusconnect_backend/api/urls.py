@@ -23,6 +23,10 @@ from .views import (
     AnnouncementViewSet,
     my_grades,
     my_announcements,
+    ChatMessageViewSet,
+    NotificationViewSet,
+    my_messages,
+    my_unread_notifications,
 )
 
 app_name = 'api'
@@ -35,6 +39,8 @@ router.register(r'sessions', CourseSessionViewSet, basename='session')
 router.register(r'resources', CourseResourceViewSet, basename='resource')
 router.register(r'grades', GradeViewSet, basename='grade')
 router.register(r'announcements', AnnouncementViewSet, basename='announcement')
+router.register(r'messages', ChatMessageViewSet, basename='message')
+router.register(r'notifications', NotificationViewSet, basename='notification')
 
 urlpatterns = [
     # Authentification
@@ -66,5 +72,11 @@ urlpatterns = [
     
     # Routes personnalisées pour les annonces
     path('announcements/my/', my_announcements, name='my_announcements'),
+    
+    # Routes personnalisées pour les messages
+    path('messages/my/', my_messages, name='my_messages'),
+    
+    # Routes personnalisées pour les notifications
+    path('notifications/unread/', my_unread_notifications, name='my_unread_notifications'),
 ]
 

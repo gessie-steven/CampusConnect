@@ -1,6 +1,6 @@
 from rest_framework import serializers
 from django.contrib.auth.password_validation import validate_password
-from .models import User, StudentProfile, TeacherProfile, Module, Enrollment, CourseSession, CourseResource, Grade, Announcement
+from .models import User, StudentProfile, TeacherProfile, Module, Enrollment, CourseSession, CourseResource, Grade, Announcement, ChatMessage, Notification
 
 
 class UserSerializer(serializers.ModelSerializer):
@@ -538,4 +538,76 @@ class AnnouncementSerializer(serializers.ModelSerializer):
                     'expiry_date': 'La date d\'expiration doit être dans le futur.'
                 })
         return attrs
+
+
+class ChatMessageSerializer(serializers.ModelSerializer):
+    """
+    Serializer pour les messages de chat
+    """
+    sender_name = serializers.CharField(source='sender.get_full_name', read_only=True)
+    sender_username = serializers.CharField(source='sender.username', read_only=True)
+    sender_email = serializers.EmailField(source='sender.email', read_only=True)
+    recipient_name = serializers.CharField(source='recipient.get_full_name', read_only=True)
+    recipient_username = serializers.CharField(source='recipient.username', read_only=True)
+    recipient_email = serializers.EmailField(source='recipient.email', read_only=True)
+    
+    class Meta:
+        model = ChatMessage
+        fields = [
+            'id', 'sender', 'sender_name', 'sender_username', 'sender_email',
+            'recipient', 'recipient_name', 'recipient_username', 'recipient_email',
+            'message', 'is_read', 'read_at', 'created_at', 'updated_at'
+        ]
+        read_only_fields = ['id', 'sender', 'is_read', 'read_at', 'created_at', 'updated_at']
+    
+    def validate(self, attrs):
+        """Valider que l'expéditeur et le destinataire sont différents"""
+        sender = self.context['request'].user
+        recipient = attrs.get('recipient')
+        
+        if sender == recipient:
+            raise serializers.ValidationError({
+                'recipient': 'Vous ne pouvez pas vous envoyer un message à vous-même.'
+            })
+        
+        return attrs
+
+
+class ChatMessageCreateSerializer(serializers.Serializer):
+    """
+    Serializer simplifié pour créer un message
+    """
+    recipient_id = serializers.IntegerField(required=True)
+    message = serializers.CharField(required=True, max_length=5000)
+    
+    def validate_recipient_id(self, value):
+        """Valider que le destinataire existe"""
+        from django.contrib.auth import get_user_model
+        User = get_user_model()
+        try:
+            User.objects.get(id=value)
+        except User.DoesNotExist:
+            raise serializers.ValidationError("Le destinataire spécifié n'existe pas.")
+        return value
+
+
+class NotificationSerializer(serializers.ModelSerializer):
+    """
+    Serializer pour les notifications
+    """
+    recipient_name = serializers.CharField(source='recipient.get_full_name', read_only=True)
+    recipient_username = serializers.CharField(source='recipient.username', read_only=True)
+    notification_type_display = serializers.CharField(source='get_notification_type_display', read_only=True)
+    related_module_code = serializers.CharField(source='related_module.code', read_only=True, allow_null=True)
+    related_module_name = serializers.CharField(source='related_module.name', read_only=True, allow_null=True)
+    
+    class Meta:
+        model = Notification
+        fields = [
+            'id', 'recipient', 'recipient_name', 'recipient_username',
+            'notification_type', 'notification_type_display', 'title', 'content',
+            'link', 'related_module', 'related_module_code', 'related_module_name',
+            'related_grade', 'related_announcement', 'is_read', 'read_at', 'created_at'
+        ]
+        read_only_fields = ['id', 'recipient', 'is_read', 'read_at', 'created_at']
 
