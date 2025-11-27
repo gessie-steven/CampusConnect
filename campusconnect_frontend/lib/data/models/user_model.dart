@@ -5,7 +5,7 @@ class UserModel {
   final String? firstName;
   final String? lastName;
   final String role;
-  final String roleDisplay;
+  final String? roleDisplay;
   final String? phone;
   final bool isActive;
   final DateTime? dateJoined;
@@ -19,7 +19,7 @@ class UserModel {
     this.firstName,
     this.lastName,
     required this.role,
-    required this.roleDisplay,
+    this.roleDisplay,
     this.phone,
     required this.isActive,
     this.dateJoined,
@@ -35,7 +35,7 @@ class UserModel {
       firstName: json['first_name'] as String?,
       lastName: json['last_name'] as String?,
       role: json['role'] as String,
-      roleDisplay: json['role_display'] as String? ?? json['role'] as String,
+      roleDisplay: json['role_display'] as String?,
       phone: json['phone'] as String?,
       isActive: json['is_active'] as bool? ?? true,
       dateJoined: json['date_joined'] != null
@@ -58,12 +58,8 @@ class UserModel {
       'first_name': firstName,
       'last_name': lastName,
       'role': role,
-      'role_display': roleDisplay,
       'phone': phone,
       'is_active': isActive,
-      'date_joined': dateJoined?.toIso8601String(),
-      'created_at': createdAt?.toIso8601String(),
-      'updated_at': updatedAt?.toIso8601String(),
     };
   }
 
@@ -82,4 +78,3 @@ class UserModel {
   bool get isTeacher => role == 'teacher';
   bool get isAdmin => role == 'admin';
 }
-

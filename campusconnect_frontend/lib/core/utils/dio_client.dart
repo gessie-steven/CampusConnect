@@ -1,84 +1,74 @@
 import 'package:dio/dio.dart';
-import '../constants/app_constants.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import '../constants/app_constants.dart';
 
 class DioClient {
-  static Dio? _dio;
-  static const _storage = FlutterSecureStorage();
+  static final DioClient _instance = DioClient._internal();
+  factory DioClient() => _instance;
+  DioClient._internal();
 
   static Dio get instance {
-    if (_dio == null) {
-      _dio = Dio(
-        BaseOptions(
-          baseUrl: AppConstants.baseUrl,
-          connectTimeout: const Duration(seconds: 30),
-          receiveTimeout: const Duration(seconds: 30),
-          headers: {
-            'Content-Type': 'application/json',
-            'Accept': 'application/json',
-          },
-        ),
-      );
+    final dio = Dio(
+      BaseOptions(
+        baseUrl: AppConstants.baseUrl,
+        connectTimeout: const Duration(seconds: 30),
+        receiveTimeout: const Duration(seconds: 30),
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+        },
+      ),
+    );
 
-      _dio!.interceptors.add(
-        InterceptorsWrapper(
-          onRequest: (options, handler) async {
-            // Ajouter le token d'accès si disponible
-            final token = await _storage.read(key: AppConstants.accessTokenKey);
-            if (token != null) {
-              options.headers['Authorization'] = 'Bearer $token';
-            }
-            return handler.next(options);
-          },
-          onError: (error, handler) async {
-            // Si erreur 401, essayer de rafraîchir le token
-            if (error.response?.statusCode == 401) {
+    // Interceptor pour ajouter le token d'authentification
+    dio.interceptors.add(
+      InterceptorsWrapper(
+        onRequest: (options, handler) async {
+          const storage = FlutterSecureStorage();
+          final token = await storage.read(key: AppConstants.accessTokenKey);
+          if (token != null) {
+            options.headers['Authorization'] = 'Bearer $token';
+          }
+          return handler.next(options);
+        },
+        onError: (error, handler) async {
+          if (error.response?.statusCode == 401) {
+            // Token expiré, essayer de le rafraîchir
+            const storage = FlutterSecureStorage();
+            final refreshToken = await storage.read(key: AppConstants.refreshTokenKey);
+            if (refreshToken != null) {
               try {
-                final refreshToken = await _storage.read(
-                  key: AppConstants.refreshTokenKey,
+                final dioRefresh = Dio();
+                final response = await dioRefresh.post(
+                  '${AppConstants.baseUrl}auth/refresh/',
+                  data: {'refresh': refreshToken},
                 );
-                if (refreshToken != null) {
-                  final dio = Dio(BaseOptions(baseUrl: AppConstants.baseUrl));
-                  final response = await dio.post(
-                    '${AppConstants.baseUrl}/auth/refresh/',
-                    data: {'refresh': refreshToken},
-                  );
-
-                  if (response.statusCode == 200) {
-                    final newAccessToken = response.data['access'] as String;
-                    await _storage.write(
-                      key: AppConstants.accessTokenKey,
-                      value: newAccessToken,
-                    );
-
-                    // Réessayer la requête originale avec le nouveau token
-                    error.requestOptions.headers['Authorization'] =
-                        'Bearer $newAccessToken';
-                    final opts = Options(
-                      method: error.requestOptions.method,
-                      headers: error.requestOptions.headers,
-                    );
-                    final cloneReq = await _dio!.request(
-                      error.requestOptions.path,
-                      options: opts,
-                      data: error.requestOptions.data,
-                      queryParameters: error.requestOptions.queryParameters,
-                    );
-                    return handler.resolve(cloneReq);
-                  }
-                }
+                final newAccessToken = response.data['access'] as String;
+                await storage.write(key: AppConstants.accessTokenKey, value: newAccessToken);
+                error.requestOptions.headers['Authorization'] = 'Bearer $newAccessToken';
+                final opts = Options(
+                  method: error.requestOptions.method,
+                  headers: error.requestOptions.headers,
+                );
+                final cloneReq = await dio.request(
+                  error.requestOptions.path,
+                  options: opts,
+                  data: error.requestOptions.data,
+                  queryParameters: error.requestOptions.queryParameters,
+                );
+                return handler.resolve(cloneReq);
               } catch (e) {
-                // Si le refresh échoue, supprimer les tokens
-                await _storage.delete(key: AppConstants.accessTokenKey);
-                await _storage.delete(key: AppConstants.refreshTokenKey);
+                // Refresh failed, clear tokens
+                await storage.delete(key: AppConstants.accessTokenKey);
+                await storage.delete(key: AppConstants.refreshTokenKey);
               }
             }
-            return handler.next(error);
-          },
-        ),
-      );
-    }
-    return _dio!;
+          }
+          return handler.next(error);
+        },
+      ),
+    );
+
+    return dio;
   }
 }
-

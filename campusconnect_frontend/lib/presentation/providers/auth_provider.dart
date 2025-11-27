@@ -1,12 +1,15 @@
 import 'package:flutter/foundation.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import '../../core/constants/app_constants.dart';
 import '../../core/errors/failures.dart';
 import '../../data/models/user_model.dart';
-import '../../data/repositories/auth_repository.dart';
+import '../../data/datasources/auth_remote_datasource.dart';
+import 'package:dio/dio.dart';
 
 class AuthProvider with ChangeNotifier {
-  final AuthRepository authRepository;
-
-  AuthProvider({required this.authRepository});
+  final AuthRemoteDataSource authRemoteDataSource;
+  final FlutterSecureStorage secureStorage;
+  final Dio dio;
 
   UserModel? _user;
   bool _isLoading = false;
@@ -18,27 +21,23 @@ class AuthProvider with ChangeNotifier {
   String? get errorMessage => _errorMessage;
   bool get isAuthenticated => _isAuthenticated;
 
-  Future<void> checkAuthStatus() async {
-    _isLoading = true;
-    _errorMessage = null;
-    notifyListeners();
+  AuthProvider({
+    required this.authRemoteDataSource,
+    required this.secureStorage,
+    required this.dio,
+  }) {
+    _loadStoredAuth();
+  }
 
+  Future<void> _loadStoredAuth() async {
     try {
-      final user = await authRepository.getCurrentUser();
-      if (user != null) {
-        _user = user;
-        _isAuthenticated = true;
-      } else {
-        _isAuthenticated = false;
-        _user = null;
+      final accessToken = await secureStorage.read(key: AppConstants.accessTokenKey);
+      if (accessToken != null) {
+        dio.options.headers['Authorization'] = 'Bearer $accessToken';
+        await loadUser();
       }
     } catch (e) {
-      _isAuthenticated = false;
-      _user = null;
-      _errorMessage = 'Erreur lors de la vérification de la session';
-    } finally {
-      _isLoading = false;
-      notifyListeners();
+      // Ignore errors when loading stored auth
     }
   }
 
@@ -48,123 +47,71 @@ class AuthProvider with ChangeNotifier {
     notifyListeners();
 
     try {
-      final user = await authRepository.login(username, password);
-      _user = user;
+      final response = await authRemoteDataSource.login(username, password);
+      final accessToken = response['access'] as String;
+      final refreshToken = response['refresh'] as String?;
+
+      // Store tokens
+      await secureStorage.write(key: AppConstants.accessTokenKey, value: accessToken);
+      if (refreshToken != null) {
+        await secureStorage.write(key: AppConstants.refreshTokenKey, value: refreshToken);
+      }
+
+      // Set authorization header
+      dio.options.headers['Authorization'] = 'Bearer $accessToken';
+
+      // Load user data
+      _user = response['user'] != null
+          ? UserModel.fromJson(response['user'] as Map<String, dynamic>)
+          : await authRemoteDataSource.getMe();
+
       _isAuthenticated = true;
-      _isLoading = false;
-      notifyListeners();
-      return true;
-    } on AuthFailure catch (e) {
-      _errorMessage = e.message;
-      _isAuthenticated = false;
-      _user = null;
-      _isLoading = false;
-      notifyListeners();
-      return false;
-    } on ValidationFailure catch (e) {
-      _errorMessage = e.message;
-      _isAuthenticated = false;
-      _user = null;
-      _isLoading = false;
-      notifyListeners();
-      return false;
-    } on NetworkFailure catch (e) {
-      _errorMessage = e.message;
-      _isAuthenticated = false;
-      _user = null;
-      _isLoading = false;
-      notifyListeners();
-      return false;
-    } catch (e) {
-      _errorMessage = 'Une erreur inattendue est survenue';
-      _isAuthenticated = false;
-      _user = null;
-      _isLoading = false;
-      notifyListeners();
-      return false;
-    }
-  }
-
-  Future<bool> signup({
-    required String username,
-    required String email,
-    required String password,
-    required String password2,
-    required String firstName,
-    required String lastName,
-    required String role,
-    String? phone,
-    String? studentId,
-    String? employeeId,
-  }) async {
-    _isLoading = true;
-    _errorMessage = null;
-    notifyListeners();
-
-    try {
-      final user = await authRepository.signup(
-        username: username,
-        email: email,
-        password: password,
-        password2: password2,
-        firstName: firstName,
-        lastName: lastName,
-        role: role,
-        phone: phone,
-        studentId: studentId,
-        employeeId: employeeId,
-      );
-      _user = user;
-      _isAuthenticated = true;
-      _isLoading = false;
-      notifyListeners();
-      return true;
-    } on AuthFailure catch (e) {
-      _errorMessage = e.message;
-      _isAuthenticated = false;
-      _user = null;
-      _isLoading = false;
-      notifyListeners();
-      return false;
-    } on ValidationFailure catch (e) {
-      _errorMessage = e.message;
-      _isAuthenticated = false;
-      _user = null;
-      _isLoading = false;
-      notifyListeners();
-      return false;
-    } on NetworkFailure catch (e) {
-      _errorMessage = e.message;
-      _isAuthenticated = false;
-      _user = null;
-      _isLoading = false;
-      notifyListeners();
-      return false;
-    } catch (e) {
-      _errorMessage = 'Une erreur inattendue est survenue';
-      _isAuthenticated = false;
-      _user = null;
-      _isLoading = false;
-      notifyListeners();
-      return false;
-    }
-  }
-
-  Future<void> logout() async {
-    _isLoading = true;
-    notifyListeners();
-
-    try {
-      await authRepository.logout();
-      _user = null;
-      _isAuthenticated = false;
       _errorMessage = null;
+      return true;
+    } on AuthenticationFailure catch (e) {
+      _errorMessage = e.message;
+      _isAuthenticated = false;
+      return false;
+    } on ServerFailure catch (e) {
+      _errorMessage = e.message;
+      _isAuthenticated = false;
+      return false;
+    } on NetworkFailure catch (e) {
+      _errorMessage = e.message;
+      _isAuthenticated = false;
+      return false;
     } catch (e) {
-      _errorMessage = 'Erreur lors de la déconnexion';
+      _errorMessage = 'Erreur inattendue: ${e.toString()}';
+      _isAuthenticated = false;
+      return false;
     } finally {
       _isLoading = false;
       notifyListeners();
     }
+  }
+
+  Future<void> loadUser() async {
+    try {
+      _user = await authRemoteDataSource.getMe();
+      _isAuthenticated = true;
+      _errorMessage = null;
+    } catch (e) {
+      _isAuthenticated = false;
+      _user = null;
+      await logout();
+    } finally {
+      notifyListeners();
+    }
+  }
+
+  Future<void> logout() async {
+    await secureStorage.delete(key: AppConstants.accessTokenKey);
+    await secureStorage.delete(key: AppConstants.refreshTokenKey);
+    dio.options.headers.remove('Authorization');
+    _user = null;
+    _isAuthenticated = false;
+    _errorMessage = null;
+    notifyListeners();
   }
 
   void clearError() {
@@ -172,4 +119,3 @@ class AuthProvider with ChangeNotifier {
     notifyListeners();
   }
 }
-
