@@ -1,6 +1,6 @@
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
-from .models import User, StudentProfile, TeacherProfile, Module, Enrollment, CourseSession, CourseResource
+from .models import User, StudentProfile, TeacherProfile, Module, Enrollment, CourseSession, CourseResource, Grade, Announcement
 
 
 @admin.register(User)
@@ -164,5 +164,64 @@ class CourseResourceAdmin(admin.ModelAdmin):
         }),
         ('Dates', {
             'fields': ('created_at', 'updated_at')
+        }),
+    )
+
+
+@admin.register(Grade)
+class GradeAdmin(admin.ModelAdmin):
+    """
+    Administration pour les notes
+    """
+    list_display = ['student', 'module', 'grade_type', 'grade', 'max_grade', 'graded_by', 'graded_date']
+    list_filter = ['grade_type', 'graded_date', 'module', 'graded_by']
+    search_fields = [
+        'student__username', 'student__email', 'student__first_name', 'student__last_name',
+        'module__code', 'module__name', 'comment'
+    ]
+    raw_id_fields = ['student', 'module', 'graded_by']
+    readonly_fields = ['graded_date', 'created_at', 'updated_at']
+    date_hierarchy = 'graded_date'
+    
+    fieldsets = (
+        ('Note', {
+            'fields': ('student', 'module', 'grade_type', 'grade', 'max_grade', 'comment')
+        }),
+        ('Métadonnées', {
+            'fields': ('graded_by', 'graded_date')
+        }),
+        ('Dates', {
+            'fields': ('created_at', 'updated_at')
+        }),
+    )
+
+
+@admin.register(Announcement)
+class AnnouncementAdmin(admin.ModelAdmin):
+    """
+    Administration pour les annonces
+    """
+    list_display = ['title', 'author', 'module', 'priority', 'is_pinned', 'is_active', 'published_date']
+    list_filter = ['priority', 'is_pinned', 'is_active', 'target_audience', 'published_date', 'module']
+    search_fields = [
+        'title', 'content', 'author__username', 'author__email',
+        'module__code', 'module__name'
+    ]
+    raw_id_fields = ['author', 'module']
+    readonly_fields = ['published_date', 'created_at', 'updated_at']
+    date_hierarchy = 'published_date'
+    
+    fieldsets = (
+        ('Contenu', {
+            'fields': ('author', 'title', 'content')
+        }),
+        ('Ciblage', {
+            'fields': ('module', 'target_audience', 'priority')
+        }),
+        ('Affichage', {
+            'fields': ('is_pinned', 'is_active', 'expiry_date')
+        }),
+        ('Dates', {
+            'fields': ('published_date', 'created_at', 'updated_at')
         }),
     )

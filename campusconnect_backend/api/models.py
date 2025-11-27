@@ -473,3 +473,207 @@ class CourseResource(models.Model):
                 return f"{size:.2f} {unit}"
             size /= 1024.0
         return f"{size:.2f} TB"
+
+
+class Grade(models.Model):
+    """
+    Modèle représentant une note attribuée à un étudiant pour un module
+    """
+    GRADE_TYPE_CHOICES = [
+        ('exam', 'Examen'),
+        ('assignment', 'Devoir'),
+        ('project', 'Projet'),
+        ('quiz', 'Quiz'),
+        ('participation', 'Participation'),
+        ('midterm', 'Contrôle continu'),
+        ('final', 'Examen final'),
+        ('other', 'Autre'),
+    ]
+    
+    student = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name='grades',
+        limit_choices_to={'role': 'student'},
+        verbose_name='Étudiant'
+    )
+    module = models.ForeignKey(
+        Module,
+        on_delete=models.CASCADE,
+        related_name='grades',
+        verbose_name='Module'
+    )
+    grade_type = models.CharField(
+        max_length=20,
+        choices=GRADE_TYPE_CHOICES,
+        default='other',
+        verbose_name='Type de note'
+    )
+    grade = models.DecimalField(
+        max_digits=5,
+        decimal_places=2,
+        verbose_name='Note',
+        help_text='Note sur 20'
+    )
+    max_grade = models.DecimalField(
+        max_digits=5,
+        decimal_places=2,
+        default=20.00,
+        verbose_name='Note maximale',
+        help_text='Note maximale possible (par défaut 20)'
+    )
+    comment = models.TextField(
+        blank=True,
+        null=True,
+        verbose_name='Commentaire',
+        help_text='Commentaire ou remarque sur la note'
+    )
+    graded_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        related_name='graded_assignments',
+        limit_choices_to={'role__in': ['teacher', 'admin']},
+        verbose_name='Noté par'
+    )
+    graded_date = models.DateTimeField(
+        auto_now_add=True,
+        verbose_name='Date de notation'
+    )
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name='Date de création')
+    updated_at = models.DateTimeField(auto_now=True, verbose_name='Date de modification')
+    
+    class Meta:
+        verbose_name = 'Note'
+        verbose_name_plural = 'Notes'
+        ordering = ['-graded_date']
+        indexes = [
+            models.Index(fields=['student', 'module']),
+            models.Index(fields=['module', 'grade_type']),
+            models.Index(fields=['graded_date']),
+        ]
+    
+    def __str__(self):
+        return f"{self.student.username} - {self.module.code}: {self.grade}/{self.max_grade}"
+    
+    @property
+    def percentage(self):
+        """Retourne la note en pourcentage"""
+        if self.max_grade > 0:
+            return (self.grade / self.max_grade) * 100
+        return 0
+    
+    @property
+    def letter_grade(self):
+        """Retourne la note en lettre (A, B, C, D, F)"""
+        percentage = self.percentage
+        if percentage >= 90:
+            return 'A'
+        elif percentage >= 80:
+            return 'B'
+        elif percentage >= 70:
+            return 'C'
+        elif percentage >= 60:
+            return 'D'
+        else:
+            return 'F'
+
+
+class Announcement(models.Model):
+    """
+    Modèle représentant une annonce/message aux étudiants
+    """
+    PRIORITY_CHOICES = [
+        ('low', 'Basse'),
+        ('normal', 'Normale'),
+        ('high', 'Haute'),
+        ('urgent', 'Urgente'),
+    ]
+    
+    author = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name='announcements',
+        limit_choices_to={'role__in': ['teacher', 'admin']},
+        verbose_name='Auteur'
+    )
+    title = models.CharField(
+        max_length=200,
+        verbose_name='Titre'
+    )
+    content = models.TextField(
+        verbose_name='Contenu'
+    )
+    module = models.ForeignKey(
+        Module,
+        on_delete=models.CASCADE,
+        related_name='announcements',
+        blank=True,
+        null=True,
+        verbose_name='Module',
+        help_text='Module ciblé (optionnel, laisser vide pour une annonce générale)'
+    )
+    priority = models.CharField(
+        max_length=20,
+        choices=PRIORITY_CHOICES,
+        default='normal',
+        verbose_name='Priorité'
+    )
+    is_pinned = models.BooleanField(
+        default=False,
+        verbose_name='Épinglée',
+        help_text='Annonce importante affichée en premier'
+    )
+    is_active = models.BooleanField(
+        default=True,
+        verbose_name='Active',
+        help_text='Indique si l\'annonce est visible'
+    )
+    target_audience = models.CharField(
+        max_length=20,
+        choices=User.ROLE_CHOICES,
+        blank=True,
+        null=True,
+        verbose_name='Public cible',
+        help_text='Rôle ciblé (optionnel, laisser vide pour tous)'
+    )
+    published_date = models.DateTimeField(
+        auto_now_add=True,
+        verbose_name='Date de publication'
+    )
+    expiry_date = models.DateTimeField(
+        blank=True,
+        null=True,
+        verbose_name='Date d\'expiration',
+        help_text='Date après laquelle l\'annonce ne sera plus visible'
+    )
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name='Date de création')
+    updated_at = models.DateTimeField(auto_now=True, verbose_name='Date de modification')
+    
+    class Meta:
+        verbose_name = 'Annonce'
+        verbose_name_plural = 'Annonces'
+        ordering = ['-is_pinned', '-published_date']
+        indexes = [
+            models.Index(fields=['author', 'published_date']),
+            models.Index(fields=['module', 'is_active']),
+            models.Index(fields=['is_pinned', 'published_date']),
+            models.Index(fields=['is_active', 'published_date']),
+        ]
+    
+    def __str__(self):
+        module_str = f" - {self.module.code}" if self.module else " (Générale)"
+        return f"{self.title}{module_str}"
+    
+    @property
+    def is_expired(self):
+        """Vérifie si l'annonce a expiré"""
+        if self.expiry_date:
+            from django.utils import timezone
+            return timezone.now() > self.expiry_date
+        return False
+    
+    @property
+    def is_visible(self):
+        """Vérifie si l'annonce est visible (active et non expirée)"""
+        return self.is_active and not self.is_expired

@@ -21,10 +21,12 @@ from .serializers import (
     TeacherProfileSerializer,
     CourseSessionSerializer,
     CourseResourceSerializer,
-    CourseResourceUploadSerializer
+    CourseResourceUploadSerializer,
+    GradeSerializer,
+    AnnouncementSerializer
 )
 from .permissions import IsStudent, IsTeacher, IsAdmin, IsTeacherOrAdmin, IsModuleTeacherOrAdmin
-from .models import Module, Enrollment, CourseSession, CourseResource
+from .models import Module, Enrollment, CourseSession, CourseResource, Grade, Announcement
 
 User = get_user_model()
 
@@ -732,4 +734,237 @@ def my_schedule(request):
         sessions = sessions.filter(date__lte=date_to)
     
     serializer = CourseSessionSerializer(sessions.order_by('date', 'start_time'), many=True)
+    return Response(serializer.data)
+
+
+# ==================== VUES POUR LES NOTES ====================
+
+class GradeViewSet(viewsets.ModelViewSet):
+    """
+    ViewSet pour gérer les notes des étudiants
+    - Lecture : étudiants (leurs notes), enseignants (notes de leurs modules), admins
+    - Création/modification/suppression : enseignants (leurs modules) et admins
+    """
+    queryset = Grade.objects.all()
+    serializer_class = GradeSerializer
+    permission_classes = [IsAuthenticated]
+    
+    def get_queryset(self):
+        """
+        Filtrer les notes selon le rôle de l'utilisateur
+        """
+        user = self.request.user
+        
+        if user.role == 'student':
+            # Les étudiants voient uniquement leurs notes
+            queryset = Grade.objects.filter(student=user)
+        elif user.role == 'teacher':
+            # Les enseignants voient les notes des modules qu'ils enseignent
+            queryset = Grade.objects.filter(module__teacher=user)
+        elif user.role == 'admin':
+            # Les admins voient toutes les notes
+            queryset = Grade.objects.all()
+        else:
+            queryset = Grade.objects.none()
+        
+        # Filtres optionnels
+        module_id = self.request.query_params.get('module', None)
+        if module_id:
+            queryset = queryset.filter(module_id=module_id)
+        
+        student_id = self.request.query_params.get('student', None)
+        if student_id:
+            queryset = queryset.filter(student_id=student_id)
+        
+        grade_type = self.request.query_params.get('grade_type', None)
+        if grade_type:
+            queryset = queryset.filter(grade_type=grade_type)
+        
+        return queryset.order_by('-graded_date')
+    
+    def get_permissions(self):
+        """
+        Les étudiants peuvent uniquement lire leurs notes
+        Les enseignants et admins peuvent créer/modifier/supprimer
+        """
+        if self.action in ['list', 'retrieve']:
+            return [IsAuthenticated()]
+        elif self.action in ['create', 'update', 'partial_update', 'destroy']:
+            return [IsTeacherOrAdmin()]
+        return [IsAuthenticated()]
+    
+    def perform_create(self, serializer):
+        """
+        Enregistrer qui a noté l'étudiant
+        """
+        serializer.save(graded_by=self.request.user)
+    
+    def perform_update(self, serializer):
+        """
+        Vérifier que l'enseignant peut modifier la note
+        """
+        instance = self.get_object()
+        user = self.request.user
+        
+        # Les admins peuvent tout modifier
+        if user.role == 'admin':
+            serializer.save()
+        # Les enseignants ne peuvent modifier que les notes de leurs modules
+        elif user.role == 'teacher' and instance.module.teacher == user:
+            serializer.save()
+        else:
+            raise PermissionError("Vous n'avez pas la permission de modifier cette note.")
+
+
+@api_view(['GET'])
+@permission_classes([IsStudent])
+def my_grades(request):
+    """
+    Endpoint pour qu'un étudiant voie toutes ses notes
+    GET /api/grades/my/
+    """
+    grades = Grade.objects.filter(student=request.user)
+    
+    # Filtres optionnels
+    module_id = request.query_params.get('module', None)
+    if module_id:
+        grades = grades.filter(module_id=module_id)
+    
+    grade_type = request.query_params.get('grade_type', None)
+    if grade_type:
+        grades = grades.filter(grade_type=grade_type)
+    
+    serializer = GradeSerializer(grades.order_by('-graded_date'), many=True)
+    return Response(serializer.data)
+
+
+# ==================== VUES POUR LES ANNONCES ====================
+
+class AnnouncementViewSet(viewsets.ModelViewSet):
+    """
+    ViewSet pour gérer les annonces/messages
+    - Lecture : étudiants (annonces de leurs modules ou générales), enseignants (leurs annonces), admins
+    - Création/modification/suppression : enseignants (leurs modules) et admins
+    """
+    queryset = Announcement.objects.all()
+    serializer_class = AnnouncementSerializer
+    permission_classes = [IsAuthenticated]
+    
+    def get_queryset(self):
+        """
+        Filtrer les annonces selon le rôle de l'utilisateur
+        """
+        user = self.request.user
+        
+        if user.role == 'student':
+            # Les étudiants voient les annonces des modules où ils sont inscrits ou les annonces générales
+            enrolled_modules = Module.objects.filter(
+                enrollments__student=user,
+                enrollments__is_active=True
+            )
+            queryset = Announcement.objects.filter(
+                Q(module__in=enrolled_modules) | Q(module__isnull=True),
+                is_active=True
+            )
+            # Filtrer par date d'expiration
+            from django.utils import timezone
+            queryset = queryset.filter(
+                Q(expiry_date__isnull=True) | Q(expiry_date__gt=timezone.now())
+            )
+        elif user.role == 'teacher':
+            # Les enseignants voient les annonces de leurs modules
+            queryset = Announcement.objects.filter(module__teacher=user)
+        elif user.role == 'admin':
+            # Les admins voient toutes les annonces
+            queryset = Announcement.objects.all()
+        else:
+            queryset = Announcement.objects.none()
+        
+        # Filtres optionnels
+        module_id = self.request.query_params.get('module', None)
+        if module_id:
+            queryset = queryset.filter(module_id=module_id)
+        
+        author_id = self.request.query_params.get('author', None)
+        if author_id:
+            queryset = queryset.filter(author_id=author_id)
+        
+        priority = self.request.query_params.get('priority', None)
+        if priority:
+            queryset = queryset.filter(priority=priority)
+        
+        is_pinned = self.request.query_params.get('is_pinned', None)
+        if is_pinned is not None:
+            queryset = queryset.filter(is_pinned=is_pinned.lower() == 'true')
+        
+        return queryset.order_by('-is_pinned', '-published_date')
+    
+    def get_permissions(self):
+        """
+        Tous les utilisateurs authentifiés peuvent lire
+        Les enseignants et admins peuvent créer/modifier/supprimer
+        """
+        if self.action in ['list', 'retrieve']:
+            return [IsAuthenticated()]
+        elif self.action in ['create', 'update', 'partial_update', 'destroy']:
+            return [IsTeacherOrAdmin()]
+        return [IsAuthenticated()]
+    
+    def perform_create(self, serializer):
+        """
+        Enregistrer l'auteur de l'annonce
+        """
+        serializer.save(author=self.request.user)
+    
+    def perform_update(self, serializer):
+        """
+        Vérifier que l'utilisateur peut modifier l'annonce
+        """
+        instance = self.get_object()
+        user = self.request.user
+        
+        # Les admins peuvent tout modifier
+        if user.role == 'admin':
+            serializer.save()
+        # Les enseignants ne peuvent modifier que leurs annonces
+        elif user.role == 'teacher' and instance.author == user:
+            serializer.save()
+        else:
+            raise PermissionError("Vous n'avez pas la permission de modifier cette annonce.")
+
+
+@api_view(['GET'])
+@permission_classes([IsStudent])
+def my_announcements(request):
+    """
+    Endpoint pour qu'un étudiant voie toutes les annonces qui le concernent
+    GET /api/announcements/my/
+    """
+    enrolled_modules = Module.objects.filter(
+        enrollments__student=request.user,
+        enrollments__is_active=True
+    )
+    
+    # Annonces des modules où l'étudiant est inscrit ou annonces générales
+    announcements = Announcement.objects.filter(
+        Q(module__in=enrolled_modules) | Q(module__isnull=True),
+        is_active=True
+    )
+    
+    # Filtrer par date d'expiration
+    from django.utils import timezone
+    announcements = announcements.filter(
+        Q(expiry_date__isnull=True) | Q(expiry_date__gt=timezone.now())
+    )
+    
+    # Filtres optionnels
+    module_id = request.query_params.get('module', None)
+    if module_id:
+        announcements = announcements.filter(module_id=module_id)
+    
+    priority = request.query_params.get('priority', None)
+    if priority:
+        announcements = announcements.filter(priority=priority)
+    
+    serializer = AnnouncementSerializer(announcements.order_by('-is_pinned', '-published_date'), many=True)
     return Response(serializer.data)

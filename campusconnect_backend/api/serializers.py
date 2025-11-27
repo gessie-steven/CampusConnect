@@ -1,6 +1,6 @@
 from rest_framework import serializers
 from django.contrib.auth.password_validation import validate_password
-from .models import User, StudentProfile, TeacherProfile, Module, Enrollment, CourseSession, CourseResource
+from .models import User, StudentProfile, TeacherProfile, Module, Enrollment, CourseSession, CourseResource, Grade, Announcement
 
 
 class UserSerializer(serializers.ModelSerializer):
@@ -457,5 +457,85 @@ class CourseResourceUploadSerializer(serializers.ModelSerializer):
                 'external_url': 'Vous devez fournir soit un fichier, soit une URL externe.'
             })
         
+        return attrs
+
+
+class GradeSerializer(serializers.ModelSerializer):
+    """
+    Serializer pour les notes des étudiants
+    """
+    student_name = serializers.CharField(source='student.get_full_name', read_only=True)
+    student_username = serializers.CharField(source='student.username', read_only=True)
+    student_email = serializers.EmailField(source='student.email', read_only=True)
+    module_code = serializers.CharField(source='module.code', read_only=True)
+    module_name = serializers.CharField(source='module.name', read_only=True)
+    graded_by_name = serializers.CharField(source='graded_by.get_full_name', read_only=True, allow_null=True)
+    graded_by_username = serializers.CharField(source='graded_by.username', read_only=True, allow_null=True)
+    grade_type_display = serializers.CharField(source='get_grade_type_display', read_only=True)
+    percentage = serializers.DecimalField(max_digits=5, decimal_places=2, read_only=True)
+    letter_grade = serializers.CharField(read_only=True)
+    
+    class Meta:
+        model = Grade
+        fields = [
+            'id', 'student', 'student_name', 'student_username', 'student_email',
+            'module', 'module_code', 'module_name', 'grade_type', 'grade_type_display',
+            'grade', 'max_grade', 'percentage', 'letter_grade', 'comment',
+            'graded_by', 'graded_by_name', 'graded_by_username', 'graded_date',
+            'created_at', 'updated_at'
+        ]
+        read_only_fields = ['id', 'graded_by', 'graded_date', 'created_at', 'updated_at', 'percentage', 'letter_grade']
+    
+    def validate(self, attrs):
+        """Valider que la note ne dépasse pas la note maximale"""
+        grade = attrs.get('grade')
+        max_grade = attrs.get('max_grade', 20.00)
+        
+        if grade and grade > max_grade:
+            raise serializers.ValidationError({
+                'grade': f'La note ne peut pas dépasser {max_grade}.'
+            })
+        
+        if grade and grade < 0:
+            raise serializers.ValidationError({
+                'grade': 'La note ne peut pas être négative.'
+            })
+        
+        return attrs
+
+
+class AnnouncementSerializer(serializers.ModelSerializer):
+    """
+    Serializer pour les annonces/messages
+    """
+    author_name = serializers.CharField(source='author.get_full_name', read_only=True)
+    author_username = serializers.CharField(source='author.username', read_only=True)
+    module_code = serializers.CharField(source='module.code', read_only=True, allow_null=True)
+    module_name = serializers.CharField(source='module.name', read_only=True, allow_null=True)
+    priority_display = serializers.CharField(source='get_priority_display', read_only=True)
+    target_audience_display = serializers.CharField(source='get_target_audience_display', read_only=True, allow_null=True)
+    is_expired = serializers.BooleanField(read_only=True)
+    is_visible = serializers.BooleanField(read_only=True)
+    
+    class Meta:
+        model = Announcement
+        fields = [
+            'id', 'author', 'author_name', 'author_username', 'title', 'content',
+            'module', 'module_code', 'module_name', 'priority', 'priority_display',
+            'is_pinned', 'is_active', 'target_audience', 'target_audience_display',
+            'published_date', 'expiry_date', 'is_expired', 'is_visible',
+            'created_at', 'updated_at'
+        ]
+        read_only_fields = ['id', 'author', 'published_date', 'created_at', 'updated_at', 'is_expired', 'is_visible']
+    
+    def validate(self, attrs):
+        """Valider que l'expiry_date est après published_date"""
+        expiry_date = attrs.get('expiry_date')
+        if expiry_date:
+            from django.utils import timezone
+            if expiry_date <= timezone.now():
+                raise serializers.ValidationError({
+                    'expiry_date': 'La date d\'expiration doit être dans le futur.'
+                })
         return attrs
 

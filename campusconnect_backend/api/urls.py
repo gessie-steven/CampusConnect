@@ -19,6 +19,10 @@ from .views import (
     CourseSessionViewSet,
     CourseResourceViewSet,
     my_schedule,
+    GradeViewSet,
+    AnnouncementViewSet,
+    my_grades,
+    my_announcements,
 )
 
 app_name = 'api'
@@ -29,6 +33,8 @@ router.register(r'modules', ModuleViewSet, basename='module')
 router.register(r'enrollments', EnrollmentViewSet, basename='enrollment')
 router.register(r'sessions', CourseSessionViewSet, basename='session')
 router.register(r'resources', CourseResourceViewSet, basename='resource')
+router.register(r'grades', GradeViewSet, basename='grade')
+router.register(r'announcements', AnnouncementViewSet, basename='announcement')
 
 urlpatterns = [
     # Authentification
@@ -54,5 +60,11 @@ urlpatterns = [
     
     # Routes personnalisées pour l'emploi du temps
     path('schedule/my/', my_schedule, name='my_schedule'),
+    
+    # Routes personnalisées pour les notes
+    path('grades/my/', my_grades, name='my_grades'),
+    
+    # Routes personnalisées pour les annonces
+    path('announcements/my/', my_announcements, name='my_announcements'),
 ]
 
