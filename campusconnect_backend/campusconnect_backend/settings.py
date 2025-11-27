@@ -31,9 +31,10 @@ INSTALLED_APPS = [
 
 ]
 
-# Custom User Model
+# Customiser le modèle utilisateur
 AUTH_USER_MODEL = 'api.User'
 
+# Configuration de REST Framework
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': (
         'rest_framework_simplejwt.authentication.JWTAuthentication',
@@ -43,7 +44,7 @@ REST_FRAMEWORK = {
     ),
 }
 
-# JWT Settings
+# Configuration de JWT
 from datetime import timedelta
 
 SIMPLE_JWT = {

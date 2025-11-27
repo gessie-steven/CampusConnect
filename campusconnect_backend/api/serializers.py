@@ -1,6 +1,6 @@
 from rest_framework import serializers
 from django.contrib.auth.password_validation import validate_password
-from .models import User, StudentProfile, TeacherProfile
+from .models import User, StudentProfile, TeacherProfile, Module, Enrollment
 
 
 class UserSerializer(serializers.ModelSerializer):
@@ -191,4 +191,152 @@ class ChangePasswordSerializer(serializers.Serializer):
         if not user.check_password(value):
             raise serializers.ValidationError("L'ancien mot de passe est incorrect.")
         return value
+
+
+class StudentProfileSerializer(serializers.ModelSerializer):
+    """
+    Serializer pour le profil étudiant
+    """
+    user = UserSerializer(read_only=True)
+    user_id = serializers.IntegerField(write_only=True, required=False)
+    
+    class Meta:
+        model = StudentProfile
+        fields = [
+            'id', 'user', 'user_id', 'student_id', 'enrollment_date',
+            'major', 'year'
+        ]
+        read_only_fields = ['id']
+
+
+class TeacherProfileSerializer(serializers.ModelSerializer):
+    """
+    Serializer pour le profil enseignant
+    """
+    user = UserSerializer(read_only=True)
+    user_id = serializers.IntegerField(write_only=True, required=False)
+    
+    class Meta:
+        model = TeacherProfile
+        fields = [
+            'id', 'user', 'user_id', 'employee_id', 'department',
+            'hire_date', 'specialization'
+        ]
+        read_only_fields = ['id']
+
+
+class ModuleSerializer(serializers.ModelSerializer):
+    """
+    Serializer pour le module/cours
+    """
+    teacher_name = serializers.CharField(
+        source='teacher.get_full_name',
+        read_only=True,
+        allow_null=True
+    )
+    teacher_username = serializers.CharField(
+        source='teacher.username',
+        read_only=True,
+        allow_null=True
+    )
+    enrolled_students_count = serializers.IntegerField(read_only=True)
+    is_full = serializers.BooleanField(read_only=True)
+    
+    class Meta:
+        model = Module
+        fields = [
+            'id', 'code', 'name', 'description', 'teacher', 'teacher_name',
+            'teacher_username', 'credits', 'semester', 'is_active',
+            'max_students', 'enrolled_students_count', 'is_full',
+            'created_at', 'updated_at'
+        ]
+        read_only_fields = ['id', 'created_at', 'updated_at', 'enrolled_students_count', 'is_full']
+    
+    def validate_code(self, value):
+        """Valider que le code est en majuscules"""
+        return value.upper()
+
+
+class EnrollmentSerializer(serializers.ModelSerializer):
+    """
+    Serializer pour l'inscription d'un étudiant à un module
+    """
+    student_name = serializers.CharField(
+        source='student.get_full_name',
+        read_only=True
+    )
+    student_username = serializers.CharField(
+        source='student.username',
+        read_only=True
+    )
+    student_email = serializers.EmailField(
+        source='student.email',
+        read_only=True
+    )
+    module_code = serializers.CharField(
+        source='module.code',
+        read_only=True
+    )
+    module_name = serializers.CharField(
+        source='module.name',
+        read_only=True
+    )
+    
+    class Meta:
+        model = Enrollment
+        fields = [
+            'id', 'student', 'student_name', 'student_username', 'student_email',
+            'module', 'module_code', 'module_name', 'enrollment_date',
+            'is_active', 'grade', 'notes', 'created_at', 'updated_at'
+        ]
+        read_only_fields = ['id', 'enrollment_date', 'created_at', 'updated_at']
+    
+    def validate(self, attrs):
+        student = attrs.get('student') or self.instance.student if self.instance else None
+        module = attrs.get('module') or self.instance.module if self.instance else None
+        
+        if student and student.role != 'student':
+            raise serializers.ValidationError({
+                "student": "Seuls les étudiants peuvent s'inscrire à un module."
+            })
+        
+        if module and module.is_full:
+            raise serializers.ValidationError({
+                "module": "Le module a atteint sa capacité maximale."
+            })
+        
+        if module and not module.is_active:
+            raise serializers.ValidationError({
+                "module": "Le module n'est pas actif."
+            })
+        
+        return attrs
+
+
+class EnrollmentCreateSerializer(serializers.Serializer):
+    """
+    Serializer simplifié pour créer une inscription
+    """
+    module_id = serializers.IntegerField(required=True)
+    
+    def validate_module_id(self, value):
+        try:
+            module = Module.objects.get(id=value)
+            if not module.is_active:
+                raise serializers.ValidationError("Le module n'est pas actif.")
+            if module.is_full:
+                raise serializers.ValidationError("Le module a atteint sa capacité maximale.")
+        except Module.DoesNotExist:
+            raise serializers.ValidationError("Le module spécifié n'existe pas.")
+        return value
+
+
+class ModuleDetailSerializer(ModuleSerializer):
+    """
+    Serializer détaillé pour un module avec la liste des étudiants inscrits
+    """
+    enrollments = EnrollmentSerializer(many=True, read_only=True, source='enrollments.filter(is_active=True)')
+    
+    class Meta(ModuleSerializer.Meta):
+        fields = ModuleSerializer.Meta.fields + ['enrollments']
 

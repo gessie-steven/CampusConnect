@@ -48,3 +48,22 @@ class IsTeacherOrAdmin(permissions.BasePermission):
             request.user.role in ['teacher', 'admin']
         )
 
+
+class IsModuleTeacherOrAdmin(permissions.BasePermission):
+    """
+    Permission pour vérifier si l'utilisateur est l'enseignant responsable du module ou un admin
+    """
+    def has_object_permission(self, request, view, obj):
+        if not request.user or not request.user.is_authenticated:
+            return False
+        
+        # Les admins ont toujours accès
+        if request.user.role == 'admin':
+            return True
+        
+        # L'enseignant responsable a accès
+        if request.user.role == 'teacher' and obj.teacher == request.user:
+            return True
+        
+        return False
+
