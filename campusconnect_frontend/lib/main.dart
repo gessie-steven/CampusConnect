@@ -36,8 +36,14 @@ import 'presentation/pages/dashboard_page.dart';
 import 'presentation/pages/student/student_home_page.dart';
 import 'presentation/pages/teacher/teacher_home_page.dart';
 import 'presentation/pages/admin_home_page.dart';
+import 'core/services/notification_service.dart';
 
-void main() {
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  
+  // Initialiser les notifications
+  await NotificationService.initialize();
+  
   runApp(const CampusConnectApp());
 }
 

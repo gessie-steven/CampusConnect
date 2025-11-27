@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../../data/models/course_resource_model.dart';
 import '../../providers/resource_provider.dart';
+import '../../widgets/resource_form_dialog.dart';
 
 class TeacherResourcesPage extends StatefulWidget {
   const TeacherResourcesPage({super.key});
@@ -115,9 +116,9 @@ class _TeacherResourcesPageState extends State<TeacherResourcesPage> {
   }
 
   void _showUploadResourceDialog(BuildContext context) {
-    // TODO: Implement upload resource dialog
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Fonctionnalité à venir')),
+    showDialog(
+      context: context,
+      builder: (context) => const ResourceFormDialog(),
     );
   }
 

@@ -26,5 +26,35 @@ class ModuleRepository {
       throw ServerFailure('Erreur lors de la récupération du module: ${e.toString()}');
     }
   }
+
+  Future<ModuleModel> createModule(Map<String, dynamic> data) async {
+    try {
+      return await remoteDataSource.createModule(data);
+    } on Failure {
+      rethrow;
+    } catch (e) {
+      throw ServerFailure('Erreur lors de la création du module: ${e.toString()}');
+    }
+  }
+
+  Future<ModuleModel> updateModule(int id, Map<String, dynamic> data) async {
+    try {
+      return await remoteDataSource.updateModule(id, data);
+    } on Failure {
+      rethrow;
+    } catch (e) {
+      throw ServerFailure('Erreur lors de la mise à jour du module: ${e.toString()}');
+    }
+  }
+
+  Future<void> deleteModule(int id) async {
+    try {
+      await remoteDataSource.deleteModule(id);
+    } on Failure {
+      rethrow;
+    } catch (e) {
+      throw ServerFailure('Erreur lors de la suppression du module: ${e.toString()}');
+    }
+  }
 }
 

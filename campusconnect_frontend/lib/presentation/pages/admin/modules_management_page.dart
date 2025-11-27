@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../../data/models/module_model.dart';
 import '../../providers/module_provider.dart';
+import '../../widgets/module_form_dialog.dart';
 
 class AdminModulesManagementPage extends StatefulWidget {
   const AdminModulesManagementPage({super.key});
@@ -122,16 +123,16 @@ class _AdminModulesManagementPageState extends State<AdminModulesManagementPage>
   }
 
   void _showCreateModuleDialog(BuildContext context) {
-    // TODO: Implémenter le formulaire de création de module
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Fonctionnalité à venir')),
+    showDialog(
+      context: context,
+      builder: (context) => const ModuleFormDialog(),
     );
   }
 
   void _showEditModuleDialog(BuildContext context, ModuleModel module) {
-    // TODO: Implémenter le formulaire d'édition de module
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Fonctionnalité à venir')),
+    showDialog(
+      context: context,
+      builder: (context) => ModuleFormDialog(module: module),
     );
   }
 
@@ -149,10 +150,14 @@ class _AdminModulesManagementPageState extends State<AdminModulesManagementPage>
           TextButton(
             onPressed: () async {
               Navigator.pop(context);
-              // TODO: Implémenter la suppression
+              final provider = Provider.of<ModuleProvider>(context, listen: false);
+              final success = await provider.deleteModule(module.id);
               if (context.mounted) {
                 ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Fonctionnalité à venir')),
+                  SnackBar(
+                    content: Text(success ? 'Module supprimé' : provider.errorMessage ?? 'Erreur'),
+                    backgroundColor: success ? Colors.green : Colors.red,
+                  ),
                 );
               }
             },

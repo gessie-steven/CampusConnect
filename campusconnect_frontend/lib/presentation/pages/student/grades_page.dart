@@ -1,8 +1,13 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
+import 'package:share_plus/share_plus.dart';
 import '../../../data/models/grade_model.dart';
+import '../../../data/models/user_model.dart';
 import '../../providers/grade_provider.dart';
+import '../../providers/auth_provider.dart';
+import '../../../core/services/pdf_service.dart';
 
 class GradesPage extends StatefulWidget {
   const GradesPage({super.key});
@@ -26,6 +31,59 @@ class _GradesPageState extends State<GradesPage> {
       appBar: AppBar(
         title: const Text('Mes Notes'),
         actions: [
+          IconButton(
+            icon: const Icon(Icons.picture_as_pdf),
+            onPressed: () async {
+              final gradeProvider = Provider.of<GradeProvider>(context, listen: false);
+              final authProvider = Provider.of<AuthProvider>(context, listen: false);
+              
+              if (authProvider.user != null && gradeProvider.grades.isNotEmpty) {
+                try {
+                  final file = await PdfService.generateGradesReport(
+                    authProvider.user!,
+                    gradeProvider.grades,
+                  );
+                  
+                  if (context.mounted) {
+                    await Share.shareXFiles(
+                      [XFile(file.path)],
+                      text: 'Mon bulletin de notes - CampusConnect',
+                    );
+                  }
+                } catch (e) {
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('Erreur lors de la génération du PDF: $e')),
+                    );
+                  }
+                }
+              }
+            },
+            tooltip: 'Télécharger le bulletin PDF',
+          ),
+          IconButton(
+            icon: const Icon(Icons.print),
+            onPressed: () async {
+              final gradeProvider = Provider.of<GradeProvider>(context, listen: false);
+              final authProvider = Provider.of<AuthProvider>(context, listen: false);
+              
+              if (authProvider.user != null && gradeProvider.grades.isNotEmpty) {
+                try {
+                  await PdfService.printGradesReport(
+                    authProvider.user!,
+                    gradeProvider.grades,
+                  );
+                } catch (e) {
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('Erreur lors de l\'impression: $e')),
+                    );
+                  }
+                }
+              }
+            },
+            tooltip: 'Imprimer le bulletin',
+          ),
           IconButton(
             icon: const Icon(Icons.refresh),
             onPressed: () {
@@ -183,8 +241,8 @@ class _GradesPageState extends State<GradesPage> {
                 ),
               ),
             ],
-          );
-        },
+          ),
+        ),
       ),
     );
   }

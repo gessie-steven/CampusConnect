@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../../data/models/user_model.dart';
 import '../../providers/user_provider.dart';
+import '../../widgets/user_form_dialog.dart';
+import '../../widgets/search_bar_widget.dart';
 
 class AdminUsersPage extends StatefulWidget {
   const AdminUsersPage({super.key});
@@ -12,6 +14,8 @@ class AdminUsersPage extends StatefulWidget {
 
 class _AdminUsersPageState extends State<AdminUsersPage> {
   String? _selectedRole;
+  final _searchController = TextEditingController();
+  String _searchQuery = '';
 
   @override
   void initState() {
@@ -19,6 +23,17 @@ class _AdminUsersPageState extends State<AdminUsersPage> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       Provider.of<UserProvider>(context, listen: false).loadUsers();
     });
+    _searchController.addListener(() {
+      setState(() {
+        _searchQuery = _searchController.text.toLowerCase();
+      });
+    });
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
   }
 
   @override
@@ -43,9 +58,19 @@ class _AdminUsersPageState extends State<AdminUsersPage> {
       ),
       body: Column(
         children: [
+          // Barre de recherche
+          SearchBarWidget(
+            hintText: 'Rechercher un utilisateur...',
+            controller: _searchController,
+            onClear: () {
+              setState(() {
+                _searchQuery = '';
+              });
+            },
+          ),
           // Filtres par rôle
           Container(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
             color: Colors.grey[100],
             child: Row(
               children: [
@@ -101,9 +126,18 @@ class _AdminUsersPageState extends State<AdminUsersPage> {
                   );
                 }
 
-                final users = _selectedRole != null
+                var users = _selectedRole != null
                     ? provider.getUsersByRole(_selectedRole!)
                     : provider.users;
+
+                // Filtrer par recherche
+                if (_searchQuery.isNotEmpty) {
+                  users = users.where((user) {
+                    return user.fullName.toLowerCase().contains(_searchQuery) ||
+                        user.email.toLowerCase().contains(_searchQuery) ||
+                        (user.phone != null && user.phone!.toLowerCase().contains(_searchQuery));
+                  }).toList();
+                }
 
                 if (users.isEmpty) {
                   return const Center(
@@ -181,16 +215,16 @@ class _AdminUsersPageState extends State<AdminUsersPage> {
   }
 
   void _showCreateUserDialog(BuildContext context) {
-    // TODO: Implémenter le formulaire de création d'utilisateur
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Fonctionnalité à venir')),
+    showDialog(
+      context: context,
+      builder: (context) => const UserFormDialog(),
     );
   }
 
   void _showEditUserDialog(BuildContext context, UserModel user) {
-    // TODO: Implémenter le formulaire d'édition d'utilisateur
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Fonctionnalité à venir')),
+    showDialog(
+      context: context,
+      builder: (context) => UserFormDialog(user: user),
     );
   }
 

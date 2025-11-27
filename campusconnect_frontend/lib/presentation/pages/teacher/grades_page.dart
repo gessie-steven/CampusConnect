@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 import '../../../data/models/grade_model.dart';
 import '../../providers/grade_provider.dart';
+import '../../widgets/grade_form_dialog.dart';
 
 class TeacherGradesPage extends StatefulWidget {
   const TeacherGradesPage({super.key});
@@ -133,16 +134,16 @@ class _TeacherGradesPageState extends State<TeacherGradesPage> {
   }
 
   void _showAddGradeDialog(BuildContext context) {
-    // TODO: Implement add grade dialog
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Fonctionnalité à venir')),
+    showDialog(
+      context: context,
+      builder: (context) => const GradeFormDialog(),
     );
   }
 
   void _showEditGradeDialog(BuildContext context, GradeModel grade) {
-    // TODO: Implement edit grade dialog
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Fonctionnalité à venir')),
+    showDialog(
+      context: context,
+      builder: (context) => GradeFormDialog(grade: grade),
     );
   }
 

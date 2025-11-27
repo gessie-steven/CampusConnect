@@ -49,38 +49,54 @@ class _CoursesPageState extends State<CoursesPage> {
   }
 
   Widget _buildMyEnrollments() {
-    return Consumer<EnrollmentProvider>(
-      builder: (context, enrollmentProvider, child) {
-        if (enrollmentProvider.isLoading) {
-          return const Center(child: CircularProgressIndicator());
-        }
+    return RefreshIndicator(
+      onRefresh: () async {
+        await Provider.of<EnrollmentProvider>(context, listen: false).loadMyEnrollments();
+      },
+      child: Consumer<EnrollmentProvider>(
+        builder: (context, enrollmentProvider, child) {
+          if (enrollmentProvider.isLoading && enrollmentProvider.enrollments.isEmpty) {
+            return const Center(child: CircularProgressIndicator());
+          }
 
-        if (enrollmentProvider.errorMessage != null) {
-          return Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Text(
-                  enrollmentProvider.errorMessage!,
-                  style: const TextStyle(color: Colors.red),
+          if (enrollmentProvider.errorMessage != null && enrollmentProvider.enrollments.isEmpty) {
+            return SingleChildScrollView(
+              physics: const AlwaysScrollableScrollPhysics(),
+              child: SizedBox(
+                height: MediaQuery.of(context).size.height * 0.7,
+                child: Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(
+                        enrollmentProvider.errorMessage!,
+                        style: const TextStyle(color: Colors.red),
+                      ),
+                      const SizedBox(height: 16),
+                      ElevatedButton(
+                        onPressed: () => enrollmentProvider.loadMyEnrollments(),
+                        child: const Text('Réessayer'),
+                      ),
+                    ],
+                  ),
                 ),
-                const SizedBox(height: 16),
-                ElevatedButton(
-                  onPressed: () => enrollmentProvider.loadMyEnrollments(),
-                  child: const Text('Réessayer'),
+              ),
+            );
+          }
+
+          if (enrollmentProvider.enrollments.isEmpty) {
+            return const SingleChildScrollView(
+              physics: AlwaysScrollableScrollPhysics(),
+              child: SizedBox(
+                height: 500,
+                child: Center(
+                  child: Text('Aucune inscription'),
                 ),
-              ],
-            ),
-          );
-        }
+              ),
+            );
+          }
 
-        if (enrollmentProvider.enrollments.isEmpty) {
-          return const Center(
-            child: Text('Aucune inscription'),
-          );
-        }
-
-        return ListView.builder(
+          return ListView.builder(
           padding: const EdgeInsets.all(16),
           itemCount: enrollmentProvider.enrollments.length,
           itemBuilder: (context, index) {
@@ -113,30 +129,43 @@ class _CoursesPageState extends State<CoursesPage> {
   }
 
   Widget _buildAvailableModules() {
-    return Consumer2<ModuleProvider, EnrollmentProvider>(
-      builder: (context, moduleProvider, enrollmentProvider, child) {
-        if (moduleProvider.isLoading) {
-          return const Center(child: CircularProgressIndicator());
-        }
+    return RefreshIndicator(
+      onRefresh: () async {
+        await Future.wait([
+          Provider.of<ModuleProvider>(context, listen: false).loadModules(),
+          Provider.of<EnrollmentProvider>(context, listen: false).loadMyEnrollments(),
+        ]);
+      },
+      child: Consumer2<ModuleProvider, EnrollmentProvider>(
+        builder: (context, moduleProvider, enrollmentProvider, child) {
+          if (moduleProvider.isLoading && moduleProvider.modules.isEmpty) {
+            return const Center(child: CircularProgressIndicator());
+          }
 
-        if (moduleProvider.errorMessage != null) {
-          return Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Text(
-                  moduleProvider.errorMessage!,
-                  style: const TextStyle(color: Colors.red),
+          if (moduleProvider.errorMessage != null && moduleProvider.modules.isEmpty) {
+            return SingleChildScrollView(
+              physics: const AlwaysScrollableScrollPhysics(),
+              child: SizedBox(
+                height: MediaQuery.of(context).size.height * 0.7,
+                child: Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(
+                        moduleProvider.errorMessage!,
+                        style: const TextStyle(color: Colors.red),
+                      ),
+                      const SizedBox(height: 16),
+                      ElevatedButton(
+                        onPressed: () => moduleProvider.loadModules(),
+                        child: const Text('Réessayer'),
+                      ),
+                    ],
+                  ),
                 ),
-                const SizedBox(height: 16),
-                ElevatedButton(
-                  onPressed: () => moduleProvider.loadModules(),
-                  child: const Text('Réessayer'),
-                ),
-              ],
-            ),
-          );
-        }
+              ),
+            );
+          }
 
         // Filtrer les modules où l'étudiant n'est pas déjà inscrit
         final enrolledModuleIds = enrollmentProvider.enrollments

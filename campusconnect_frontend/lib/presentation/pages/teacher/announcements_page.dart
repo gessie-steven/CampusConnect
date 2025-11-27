@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 import '../../../data/models/announcement_model.dart';
 import '../../providers/announcement_provider.dart';
+import '../../widgets/announcement_form_dialog.dart';
 
 class TeacherAnnouncementsPage extends StatefulWidget {
   const TeacherAnnouncementsPage({super.key});
@@ -115,9 +116,9 @@ class _TeacherAnnouncementsPageState extends State<TeacherAnnouncementsPage> {
   }
 
   void _showCreateAnnouncementDialog(BuildContext context) {
-    // TODO: Implement create announcement dialog
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Fonctionnalité à venir')),
+    showDialog(
+      context: context,
+      builder: (context) => const AnnouncementFormDialog(),
     );
   }
 

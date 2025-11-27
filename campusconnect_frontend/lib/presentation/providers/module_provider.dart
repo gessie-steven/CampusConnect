@@ -64,6 +64,78 @@ class ModuleProvider with ChangeNotifier {
     }
   }
 
+  Future<bool> createModule(Map<String, dynamic> data) async {
+    _isLoading = true;
+    _errorMessage = null;
+    notifyListeners();
+
+    try {
+      await moduleRepository.createModule(data);
+      await loadModules(); // Recharger la liste
+      _errorMessage = null;
+      return true;
+    } on ValidationFailure catch (e) {
+      _errorMessage = e.message;
+      return false;
+    } on ServerFailure catch (e) {
+      _errorMessage = e.message;
+      return false;
+    } catch (e) {
+      _errorMessage = 'Erreur inattendue: ${e.toString()}';
+      return false;
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
+
+  Future<bool> updateModule(int id, Map<String, dynamic> data) async {
+    _isLoading = true;
+    _errorMessage = null;
+    notifyListeners();
+
+    try {
+      await moduleRepository.updateModule(id, data);
+      await loadModules(); // Recharger la liste
+      _errorMessage = null;
+      return true;
+    } on ValidationFailure catch (e) {
+      _errorMessage = e.message;
+      return false;
+    } on ServerFailure catch (e) {
+      _errorMessage = e.message;
+      return false;
+    } catch (e) {
+      _errorMessage = 'Erreur inattendue: ${e.toString()}';
+      return false;
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
+
+  Future<bool> deleteModule(int id) async {
+    _isLoading = true;
+    _errorMessage = null;
+    notifyListeners();
+
+    try {
+      await moduleRepository.deleteModule(id);
+      await loadModules(); // Recharger la liste
+      _errorMessage = null;
+      return true;
+    } on ServerFailure catch (e) {
+      _errorMessage = e.message;
+      return false;
+    } catch (e) {
+      _errorMessage = 'Erreur inattendue: ${e.toString()}';
+      return false;
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
+
   void clearError() {
     _errorMessage = null;
     notifyListeners();
