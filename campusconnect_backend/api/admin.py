@@ -1,6 +1,6 @@
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
-from .models import User, StudentProfile, TeacherProfile, Module, Enrollment
+from .models import User, StudentProfile, TeacherProfile, Module, Enrollment, CourseSession, CourseResource
 
 
 @admin.register(User)
@@ -97,6 +97,70 @@ class EnrollmentAdmin(admin.ModelAdmin):
         }),
         ('Évaluation', {
             'fields': ('grade', 'notes')
+        }),
+        ('Dates', {
+            'fields': ('created_at', 'updated_at')
+        }),
+    )
+
+
+@admin.register(CourseSession)
+class CourseSessionAdmin(admin.ModelAdmin):
+    """
+    Administration pour les sessions de cours
+    """
+    list_display = ['module', 'teacher', 'date', 'start_time', 'end_time', 'session_type', 'location', 'is_online']
+    list_filter = ['session_type', 'is_online', 'date', 'module', 'teacher']
+    search_fields = [
+        'module__code', 'module__name', 'teacher__username', 'teacher__email',
+        'title', 'location', 'description'
+    ]
+    raw_id_fields = ['module', 'teacher']
+    readonly_fields = ['created_at', 'updated_at']
+    date_hierarchy = 'date'
+    
+    fieldsets = (
+        ('Informations générales', {
+            'fields': ('module', 'teacher', 'title', 'session_type')
+        }),
+        ('Horaires', {
+            'fields': ('date', 'start_time', 'end_time')
+        }),
+        ('Lieu', {
+            'fields': ('location', 'is_online')
+        }),
+        ('Description', {
+            'fields': ('description',)
+        }),
+        ('Dates', {
+            'fields': ('created_at', 'updated_at')
+        }),
+    )
+
+
+@admin.register(CourseResource)
+class CourseResourceAdmin(admin.ModelAdmin):
+    """
+    Administration pour les ressources de cours
+    """
+    list_display = ['title', 'module', 'resource_type', 'uploaded_by', 'is_public', 'download_count', 'created_at']
+    list_filter = ['resource_type', 'is_public', 'created_at', 'module']
+    search_fields = [
+        'title', 'description', 'module__code', 'module__name',
+        'uploaded_by__username', 'uploaded_by__email'
+    ]
+    raw_id_fields = ['module', 'uploaded_by']
+    readonly_fields = ['file_size', 'download_count', 'created_at', 'updated_at']
+    
+    fieldsets = (
+        ('Informations générales', {
+            'fields': ('module', 'title', 'description', 'resource_type')
+        }),
+        ('Fichier', {
+            'fields': ('file', 'external_url', 'file_size')
+        }),
+        ('Métadonnées', {
+            'fields': ('uploaded_by', 'is_public', 'download_count')
         }),
         ('Dates', {
             'fields': ('created_at', 'updated_at')

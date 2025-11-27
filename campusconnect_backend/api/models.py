@@ -271,3 +271,205 @@ class Enrollment(models.Model):
         if self.student.role != 'student':
             raise ValueError("Seuls les étudiants peuvent s'inscrire à un module")
         super().save(*args, **kwargs)
+
+
+class CourseSession(models.Model):
+    """
+    Modèle représentant une session de cours dans l'emploi du temps
+    """
+    SESSION_TYPE_CHOICES = [
+        ('lecture', 'Cours magistral'),
+        ('tutorial', 'TD - Travaux dirigés'),
+        ('lab', 'TP - Travaux pratiques'),
+        ('exam', 'Examen'),
+        ('other', 'Autre'),
+    ]
+    
+    module = models.ForeignKey(
+        Module,
+        on_delete=models.CASCADE,
+        related_name='sessions',
+        verbose_name='Module'
+    )
+    teacher = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        related_name='taught_sessions',
+        limit_choices_to={'role': 'teacher'},
+        verbose_name='Enseignant'
+    )
+    title = models.CharField(
+        max_length=200,
+        blank=True,
+        null=True,
+        verbose_name='Titre',
+        help_text='Titre optionnel de la session'
+    )
+    session_type = models.CharField(
+        max_length=20,
+        choices=SESSION_TYPE_CHOICES,
+        default='lecture',
+        verbose_name='Type de session'
+    )
+    date = models.DateField(
+        verbose_name='Date'
+    )
+    start_time = models.TimeField(
+        verbose_name='Heure de début'
+    )
+    end_time = models.TimeField(
+        verbose_name='Heure de fin'
+    )
+    location = models.CharField(
+        max_length=200,
+        blank=True,
+        null=True,
+        verbose_name='Lieu',
+        help_text='Salle physique ou lien de visioconférence'
+    )
+    is_online = models.BooleanField(
+        default=False,
+        verbose_name='Session en ligne',
+        help_text='Indique si la session est en visioconférence'
+    )
+    description = models.TextField(
+        blank=True,
+        null=True,
+        verbose_name='Description',
+        help_text='Description ou notes sur la session'
+    )
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name='Date de création')
+    updated_at = models.DateTimeField(auto_now=True, verbose_name='Date de modification')
+    
+    class Meta:
+        verbose_name = 'Session de cours'
+        verbose_name_plural = 'Sessions de cours'
+        ordering = ['date', 'start_time']
+        indexes = [
+            models.Index(fields=['module', 'date']),
+            models.Index(fields=['teacher', 'date']),
+            models.Index(fields=['date', 'start_time']),
+        ]
+    
+    def __str__(self):
+        date_str = self.date.strftime('%d/%m/%Y')
+        time_str = f"{self.start_time.strftime('%H:%M')} - {self.end_time.strftime('%H:%M')}"
+        return f"{self.module.code} - {date_str} {time_str}"
+    
+    def clean(self):
+        """Valider que l'heure de fin est après l'heure de début"""
+        from django.core.exceptions import ValidationError
+        if self.start_time and self.end_time and self.end_time <= self.start_time:
+            raise ValidationError("L'heure de fin doit être après l'heure de début")
+
+
+class CourseResource(models.Model):
+    """
+    Modèle représentant une ressource de cours (fichier)
+    """
+    RESOURCE_TYPE_CHOICES = [
+        ('pdf', 'PDF'),
+        ('doc', 'Document Word'),
+        ('docx', 'Document Word'),
+        ('ppt', 'PowerPoint'),
+        ('pptx', 'PowerPoint'),
+        ('xls', 'Excel'),
+        ('xlsx', 'Excel'),
+        ('video', 'Vidéo'),
+        ('audio', 'Audio'),
+        ('image', 'Image'),
+        ('link', 'Lien externe'),
+        ('other', 'Autre'),
+    ]
+    
+    module = models.ForeignKey(
+        Module,
+        on_delete=models.CASCADE,
+        related_name='resources',
+        verbose_name='Module'
+    )
+    title = models.CharField(
+        max_length=200,
+        verbose_name='Titre'
+    )
+    description = models.TextField(
+        blank=True,
+        null=True,
+        verbose_name='Description'
+    )
+    resource_type = models.CharField(
+        max_length=20,
+        choices=RESOURCE_TYPE_CHOICES,
+        default='other',
+        verbose_name='Type de ressource'
+    )
+    file = models.FileField(
+        upload_to='course_resources/%Y/%m/%d/',
+        blank=True,
+        null=True,
+        verbose_name='Fichier',
+        help_text='Fichier à télécharger'
+    )
+    external_url = models.URLField(
+        blank=True,
+        null=True,
+        verbose_name='URL externe',
+        help_text='Lien externe si la ressource n\'est pas un fichier'
+    )
+    uploaded_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        related_name='uploaded_resources',
+        verbose_name='Téléchargé par'
+    )
+    is_public = models.BooleanField(
+        default=True,
+        verbose_name='Public',
+        help_text='Indique si la ressource est accessible à tous les étudiants du module'
+    )
+    file_size = models.BigIntegerField(
+        blank=True,
+        null=True,
+        verbose_name='Taille du fichier (octets)',
+        help_text='Taille du fichier en octets'
+    )
+    download_count = models.IntegerField(
+        default=0,
+        verbose_name='Nombre de téléchargements'
+    )
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name='Date de création')
+    updated_at = models.DateTimeField(auto_now=True, verbose_name='Date de modification')
+    
+    class Meta:
+        verbose_name = 'Ressource de cours'
+        verbose_name_plural = 'Ressources de cours'
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['module']),
+            models.Index(fields=['resource_type']),
+            models.Index(fields=['is_public']),
+        ]
+    
+    def __str__(self):
+        return f"{self.title} - {self.module.code}"
+    
+    def save(self, *args, **kwargs):
+        """Calculer la taille du fichier lors de l'enregistrement"""
+        if self.file:
+            self.file_size = self.file.size
+        super().save(*args, **kwargs)
+    
+    @property
+    def file_size_human(self):
+        """Retourne la taille du fichier formatée de manière lisible"""
+        if not self.file_size:
+            return "N/A"
+        
+        size = float(self.file_size)
+        for unit in ['B', 'KB', 'MB', 'GB']:
+            if size < 1024.0:
+                return f"{size:.2f} {unit}"
+            size /= 1024.0
+        return f"{size:.2f} TB"

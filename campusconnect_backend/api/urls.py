@@ -16,6 +16,9 @@ from .views import (
     enroll_to_module,
     unenroll_from_module,
     my_enrollments,
+    CourseSessionViewSet,
+    CourseResourceViewSet,
+    my_schedule,
 )
 
 app_name = 'api'
@@ -24,6 +27,8 @@ app_name = 'api'
 router = DefaultRouter()
 router.register(r'modules', ModuleViewSet, basename='module')
 router.register(r'enrollments', EnrollmentViewSet, basename='enrollment')
+router.register(r'sessions', CourseSessionViewSet, basename='session')
+router.register(r'resources', CourseResourceViewSet, basename='resource')
 
 urlpatterns = [
     # Authentification
@@ -46,5 +51,8 @@ urlpatterns = [
     path('modules/<int:module_id>/enroll/', enroll_to_module, name='enroll_to_module'),
     path('modules/<int:module_id>/unenroll/', unenroll_from_module, name='unenroll_from_module'),
     path('enrollments/my/', my_enrollments, name='my_enrollments'),
+    
+    # Routes personnalisées pour l'emploi du temps
+    path('schedule/my/', my_schedule, name='my_schedule'),
 ]
 

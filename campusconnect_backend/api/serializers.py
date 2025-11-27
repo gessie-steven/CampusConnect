@@ -1,6 +1,6 @@
 from rest_framework import serializers
 from django.contrib.auth.password_validation import validate_password
-from .models import User, StudentProfile, TeacherProfile, Module, Enrollment
+from .models import User, StudentProfile, TeacherProfile, Module, Enrollment, CourseSession, CourseResource
 
 
 class UserSerializer(serializers.ModelSerializer):
@@ -339,4 +339,123 @@ class ModuleDetailSerializer(ModuleSerializer):
     
     class Meta(ModuleSerializer.Meta):
         fields = ModuleSerializer.Meta.fields + ['enrollments']
+
+
+class CourseSessionSerializer(serializers.ModelSerializer):
+    """
+    Serializer pour les sessions de cours (emploi du temps)
+    """
+    module_code = serializers.CharField(source='module.code', read_only=True)
+    module_name = serializers.CharField(source='module.name', read_only=True)
+    teacher_name = serializers.CharField(source='teacher.get_full_name', read_only=True, allow_null=True)
+    teacher_username = serializers.CharField(source='teacher.username', read_only=True, allow_null=True)
+    session_type_display = serializers.CharField(source='get_session_type_display', read_only=True)
+    duration_minutes = serializers.SerializerMethodField()
+    
+    class Meta:
+        model = CourseSession
+        fields = [
+            'id', 'module', 'module_code', 'module_name', 'teacher', 'teacher_name',
+            'teacher_username', 'title', 'session_type', 'session_type_display',
+            'date', 'start_time', 'end_time', 'duration_minutes', 'location',
+            'is_online', 'description', 'created_at', 'updated_at'
+        ]
+        read_only_fields = ['id', 'created_at', 'updated_at']
+    
+    def get_duration_minutes(self, obj):
+        """Calculer la durée de la session en minutes"""
+        if obj.start_time and obj.end_time:
+            from datetime import datetime, timedelta
+            start = datetime.combine(obj.date, obj.start_time)
+            end = datetime.combine(obj.date, obj.end_time)
+            if end < start:
+                # Si la session se termine le lendemain
+                end += timedelta(days=1)
+            duration = end - start
+            return int(duration.total_seconds() / 60)
+        return None
+    
+    def validate(self, attrs):
+        """Valider que l'heure de fin est après l'heure de début"""
+        start_time = attrs.get('start_time') or (self.instance.start_time if self.instance else None)
+        end_time = attrs.get('end_time') or (self.instance.end_time if self.instance else None)
+        date = attrs.get('date') or (self.instance.date if self.instance else None)
+        
+        if start_time and end_time:
+            if end_time <= start_time:
+                raise serializers.ValidationError({
+                    'end_time': "L'heure de fin doit être après l'heure de début."
+                })
+        
+        return attrs
+
+
+class CourseResourceSerializer(serializers.ModelSerializer):
+    """
+    Serializer pour les ressources de cours
+    """
+    module_code = serializers.CharField(source='module.code', read_only=True)
+    module_name = serializers.CharField(source='module.name', read_only=True)
+    uploaded_by_name = serializers.CharField(source='uploaded_by.get_full_name', read_only=True, allow_null=True)
+    uploaded_by_username = serializers.CharField(source='uploaded_by.username', read_only=True, allow_null=True)
+    resource_type_display = serializers.CharField(source='get_resource_type_display', read_only=True)
+    file_size_human = serializers.CharField(read_only=True)
+    file_url = serializers.SerializerMethodField()
+    
+    class Meta:
+        model = CourseResource
+        fields = [
+            'id', 'module', 'module_code', 'module_name', 'title', 'description',
+            'resource_type', 'resource_type_display', 'file', 'file_url',
+            'external_url', 'uploaded_by', 'uploaded_by_name', 'uploaded_by_username',
+            'is_public', 'file_size', 'file_size_human', 'download_count',
+            'created_at', 'updated_at'
+        ]
+        read_only_fields = ['id', 'uploaded_by', 'file_size', 'download_count', 'created_at', 'updated_at']
+    
+    def get_file_url(self, obj):
+        """Retourner l'URL du fichier ou de l'URL externe"""
+        if obj.file:
+            request = self.context.get('request')
+            if request:
+                return request.build_absolute_uri(obj.file.url)
+            return obj.file.url
+        elif obj.external_url:
+            return obj.external_url
+        return None
+    
+    def validate(self, attrs):
+        """Valider qu'au moins un fichier ou une URL externe est fourni"""
+        file = attrs.get('file') or (self.instance.file if self.instance else None)
+        external_url = attrs.get('external_url') or (self.instance.external_url if self.instance else None)
+        
+        if not file and not external_url:
+            raise serializers.ValidationError({
+                'file': 'Vous devez fournir soit un fichier, soit une URL externe.',
+                'external_url': 'Vous devez fournir soit un fichier, soit une URL externe.'
+            })
+        
+        return attrs
+
+
+class CourseResourceUploadSerializer(serializers.ModelSerializer):
+    """
+    Serializer simplifié pour l'upload de ressources
+    """
+    class Meta:
+        model = CourseResource
+        fields = ['module', 'title', 'description', 'resource_type', 'file', 'external_url', 'is_public']
+    
+    def validate(self, attrs):
+        """Valider qu'au moins un fichier ou une URL externe est fourni"""
+        file = attrs.get('file')
+        external_url = attrs.get('external_url')
+        
+        if not file and not external_url:
+            raise serializers.ValidationError({
+                'file': 'Vous devez fournir soit un fichier, soit une URL externe.',
+                'external_url': 'Vous devez fournir soit un fichier, soit une URL externe.'
+            })
+        
+        return attrs
 
