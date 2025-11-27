@@ -7,6 +7,7 @@ import 'core/constants/routes.dart';
 import 'core/utils/dio_client.dart';
 import 'data/datasources/auth_local_datasource.dart';
 import 'data/datasources/auth_remote_datasource.dart';
+import 'data/datasources/user_remote_datasource.dart';
 import 'data/datasources/module_remote_datasource.dart';
 import 'data/datasources/enrollment_remote_datasource.dart';
 import 'data/datasources/grade_remote_datasource.dart';
@@ -14,6 +15,7 @@ import 'data/datasources/session_remote_datasource.dart';
 import 'data/datasources/resource_remote_datasource.dart';
 import 'data/datasources/announcement_remote_datasource.dart';
 import 'data/repositories/auth_repository.dart';
+import 'data/repositories/user_repository.dart';
 import 'data/repositories/module_repository.dart';
 import 'data/repositories/enrollment_repository.dart';
 import 'data/repositories/grade_repository.dart';
@@ -21,6 +23,7 @@ import 'data/repositories/session_repository.dart';
 import 'data/repositories/resource_repository.dart';
 import 'data/repositories/announcement_repository.dart';
 import 'presentation/providers/auth_provider.dart';
+import 'presentation/providers/user_provider.dart';
 import 'presentation/providers/module_provider.dart';
 import 'presentation/providers/enrollment_provider.dart';
 import 'presentation/providers/grade_provider.dart';
@@ -61,6 +64,7 @@ class CampusConnectApp extends StatelessWidget {
     );
 
     // Data sources
+    final userRemoteDataSource = UserRemoteDataSource(dio: dio);
     final moduleRemoteDataSource = ModuleRemoteDataSource(dio: dio);
     final enrollmentRemoteDataSource = EnrollmentRemoteDataSource(dio: dio);
     final gradeRemoteDataSource = GradeRemoteDataSource(dio: dio);
@@ -69,6 +73,7 @@ class CampusConnectApp extends StatelessWidget {
     final announcementRemoteDataSource = AnnouncementRemoteDataSource(dio: dio);
 
     // Repositories
+    final userRepository = UserRepository(remoteDataSource: userRemoteDataSource);
     final moduleRepository = ModuleRepository(remoteDataSource: moduleRemoteDataSource);
     final enrollmentRepository = EnrollmentRepository(remoteDataSource: enrollmentRemoteDataSource);
     final gradeRepository = GradeRepository(remoteDataSource: gradeRemoteDataSource);
@@ -77,6 +82,7 @@ class CampusConnectApp extends StatelessWidget {
     final announcementRepository = AnnouncementRepository(remoteDataSource: announcementRemoteDataSource);
 
     // Providers
+    final userProvider = UserProvider(userRepository: userRepository);
     final moduleProvider = ModuleProvider(moduleRepository: moduleRepository);
     final enrollmentProvider = EnrollmentProvider(enrollmentRepository: enrollmentRepository);
     final gradeProvider = GradeProvider(gradeRepository: gradeRepository);
@@ -87,6 +93,7 @@ class CampusConnectApp extends StatelessWidget {
     return MultiProvider(
       providers: [
         ChangeNotifierProvider.value(value: authProvider),
+        ChangeNotifierProvider.value(value: userProvider),
         ChangeNotifierProvider.value(value: moduleProvider),
         ChangeNotifierProvider.value(value: enrollmentProvider),
         ChangeNotifierProvider.value(value: gradeProvider),

@@ -35,6 +35,22 @@ from .models import Module, Enrollment, CourseSession, CourseResource, Grade, An
 User = get_user_model()
 
 
+class UserViewSet(viewsets.ModelViewSet):
+    """
+    ViewSet pour la gestion des utilisateurs (admin seulement)
+    """
+    queryset = User.objects.all()
+    serializer_class = UserSerializer
+    permission_classes = [IsAuthenticated, IsAdmin]
+
+    def get_queryset(self):
+        queryset = User.objects.all()
+        role = self.request.query_params.get('role', None)
+        if role:
+            queryset = queryset.filter(role=role)
+        return queryset.order_by('-date_joined')
+
+
 class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
     """
     Serializer personnalisé pour inclure les informations utilisateur dans le token

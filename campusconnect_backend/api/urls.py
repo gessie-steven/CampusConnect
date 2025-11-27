@@ -11,6 +11,7 @@ from .views import (
     student_only_view,
     teacher_only_view,
     admin_only_view,
+    UserViewSet,
     ModuleViewSet,
     EnrollmentViewSet,
     enroll_to_module,
@@ -33,6 +34,7 @@ app_name = 'api'
 
 # Router pour les ViewSets
 router = DefaultRouter()
+router.register(r'users', UserViewSet, basename='user')
 router.register(r'modules', ModuleViewSet, basename='module')
 router.register(r'enrollments', EnrollmentViewSet, basename='enrollment')
 router.register(r'sessions', CourseSessionViewSet, basename='session')
