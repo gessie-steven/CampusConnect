@@ -59,4 +59,44 @@ class AuthRemoteDataSource {
       throw ServerFailure('Erreur inattendue: ${e.toString()}');
     }
   }
+
+  Future<Map<String, dynamic>> register(Map<String, dynamic> data) async {
+    try {
+      final response = await dio.post(
+        '${AppConstants.baseUrl}auth/register/',
+        data: data,
+      );
+
+      if (response.statusCode == 201) {
+        return response.data as Map<String, dynamic>;
+      } else {
+        throw ServerFailure('Erreur lors de l\'inscription');
+      }
+    } on DioException catch (e) {
+      if (e.response != null) {
+        final errorData = e.response!.data;
+        if (errorData is Map<String, dynamic>) {
+          final errors = <String, String>{};
+          errorData.forEach((key, value) {
+            if (value is List && value.isNotEmpty) {
+              errors[key] = value.first as String;
+            } else if (value is Map) {
+              errors.addAll(Map<String, String>.from(value));
+            } else if (value is String) {
+              errors[key] = value;
+            }
+          });
+          if (errors.isNotEmpty) {
+            throw ValidationFailure(errors.values.first);
+          }
+        }
+        throw ServerFailure('Erreur lors de l\'inscription');
+      } else {
+        throw NetworkFailure('Erreur de réseau');
+      }
+    } catch (e) {
+      if (e is Failure) rethrow;
+      throw AuthenticationFailure('Erreur inattendue: ${e.toString()}');
+    }
+  }
 }

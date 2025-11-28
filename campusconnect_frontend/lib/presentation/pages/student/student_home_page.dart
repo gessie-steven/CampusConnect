@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../../core/constants/routes.dart';
+import '../../../core/constants/routes.dart';
 import '../../providers/auth_provider.dart';
 import 'schedule_page.dart';
 import 'grades_page.dart';

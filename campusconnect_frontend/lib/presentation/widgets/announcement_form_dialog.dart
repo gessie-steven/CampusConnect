@@ -3,8 +3,8 @@ import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 import '../../../data/models/announcement_model.dart';
 import '../../../data/models/module_model.dart';
-import '../../providers/announcement_provider.dart';
-import '../../providers/module_provider.dart';
+import '../providers/announcement_provider.dart';
+import '../providers/module_provider.dart';
 
 class AnnouncementFormDialog extends StatefulWidget {
   final AnnouncementModel? announcement;

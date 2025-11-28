@@ -34,37 +34,53 @@ class _SchedulePageState extends State<SchedulePage> {
           ),
         ],
       ),
-      body: Consumer<SessionProvider>(
-        builder: (context, provider, child) {
-          if (provider.isLoading) {
-            return const Center(child: CircularProgressIndicator());
-          }
+      body: RefreshIndicator(
+        onRefresh: () async {
+          await Provider.of<SessionProvider>(context, listen: false).loadMySchedule();
+        },
+        child: Consumer<SessionProvider>(
+          builder: (context, provider, child) {
+            if (provider.isLoading && provider.sessions.isEmpty) {
+              return const Center(child: CircularProgressIndicator());
+            }
 
-          if (provider.errorMessage != null) {
-            return Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Text(
-                    provider.errorMessage!,
-                    style: const TextStyle(color: Colors.red),
-                    textAlign: TextAlign.center,
+            if (provider.errorMessage != null && provider.sessions.isEmpty) {
+              return SingleChildScrollView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                child: SizedBox(
+                  height: MediaQuery.of(context).size.height * 0.7,
+                  child: Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Text(
+                          provider.errorMessage!,
+                          style: const TextStyle(color: Colors.red),
+                          textAlign: TextAlign.center,
+                        ),
+                        const SizedBox(height: 16),
+                        ElevatedButton(
+                          onPressed: () => provider.loadMySchedule(),
+                          child: const Text('Réessayer'),
+                        ),
+                      ],
+                    ),
                   ),
-                  const SizedBox(height: 16),
-                  ElevatedButton(
-                    onPressed: () => provider.loadMySchedule(),
-                    child: const Text('Réessayer'),
-                  ),
-                ],
-              ),
-            );
-          }
+                ),
+              );
+            }
 
-          if (provider.sessions.isEmpty) {
-            return const Center(
-              child: Text('Aucune session prévue'),
-            );
-          }
+            if (provider.sessions.isEmpty) {
+              return const SingleChildScrollView(
+                physics: AlwaysScrollableScrollPhysics(),
+                child: SizedBox(
+                  height: 500,
+                  child: Center(
+                    child: Text('Aucune session prévue'),
+                  ),
+                ),
+              );
+            }
 
           // Grouper les sessions par date
           final groupedSessions = <DateTime, List<CourseSessionModel>>{};
@@ -86,7 +102,7 @@ class _SchedulePageState extends State<SchedulePage> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Padding(
-                    padding: const EdgeInsets.only(bottom: 8, top: index > 0 ? 16 : 0),
+                    padding: EdgeInsets.only(bottom: 8, top: index > 0 ? 16 : 0),
                     child: Text(
                       DateFormat('EEEE d MMMM yyyy', 'fr_FR').format(date),
                       style: const TextStyle(

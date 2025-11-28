@@ -104,6 +104,89 @@ class AuthProvider with ChangeNotifier {
     }
   }
 
+  Future<bool> signup({
+    required String username,
+    required String email,
+    required String password,
+    required String password2,
+    required String firstName,
+    required String lastName,
+    required String role,
+    String? phone,
+    String? studentId,
+    String? employeeId,
+  }) async {
+    _isLoading = true;
+    _errorMessage = null;
+    notifyListeners();
+
+    try {
+      final data = {
+        'username': username,
+        'email': email,
+        'password': password,
+        'password2': password2,
+        'first_name': firstName,
+        'last_name': lastName,
+        'role': role,
+        if (phone != null && phone.isNotEmpty) 'phone': phone,
+        if (studentId != null && studentId.isNotEmpty) 'student_id': studentId,
+        if (employeeId != null && employeeId.isNotEmpty) 'employee_id': employeeId,
+      };
+
+      final response = await authRemoteDataSource.register(data);
+
+      // Le backend peut retourner les tokens directement ou juste un message
+      // Si tokens présents, les utiliser, sinon se connecter
+      if (response['tokens'] != null && response['tokens']['access'] != null) {
+        final accessToken = response['tokens']['access'] as String;
+        final refreshToken = response['tokens']['refresh'] as String?;
+        
+        await secureStorage.write(key: AppConstants.accessTokenKey, value: accessToken);
+        if (refreshToken != null) {
+          await secureStorage.write(key: AppConstants.refreshTokenKey, value: refreshToken);
+        }
+        
+        dio.options.headers['Authorization'] = 'Bearer $accessToken';
+        
+        _user = response['user'] != null
+            ? UserModel.fromJson(response['user'] as Map<String, dynamic>)
+            : await authRemoteDataSource.getMe();
+        
+        _isAuthenticated = true;
+        _errorMessage = null;
+        return true;
+      } else {
+        // Si pas de tokens, se connecter après inscription
+        final loginSuccess = await login(username, password);
+        return loginSuccess;
+      }
+    } on ValidationFailure catch (e) {
+      _errorMessage = e.message;
+      _isAuthenticated = false;
+      return false;
+    } on AuthenticationFailure catch (e) {
+      _errorMessage = e.message;
+      _isAuthenticated = false;
+      return false;
+    } on ServerFailure catch (e) {
+      _errorMessage = e.message;
+      _isAuthenticated = false;
+      return false;
+    } on NetworkFailure catch (e) {
+      _errorMessage = e.message;
+      _isAuthenticated = false;
+      return false;
+    } catch (e) {
+      _errorMessage = 'Erreur inattendue: ${e.toString()}';
+      _isAuthenticated = false;
+      return false;
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
+
   Future<void> logout() async {
     await secureStorage.delete(key: AppConstants.accessTokenKey);
     await secureStorage.delete(key: AppConstants.refreshTokenKey);

@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 import 'package:share_plus/share_plus.dart';
+import 'package:cross_file/cross_file.dart';
 import '../../../data/models/grade_model.dart';
 import '../../../data/models/user_model.dart';
 import '../../providers/grade_provider.dart';
@@ -92,37 +93,53 @@ class _GradesPageState extends State<GradesPage> {
           ),
         ],
       ),
-      body: Consumer<GradeProvider>(
-        builder: (context, provider, child) {
-          if (provider.isLoading) {
-            return const Center(child: CircularProgressIndicator());
-          }
+      body: RefreshIndicator(
+        onRefresh: () async {
+          await Provider.of<GradeProvider>(context, listen: false).loadMyGrades();
+        },
+        child: Consumer<GradeProvider>(
+          builder: (context, provider, child) {
+            if (provider.isLoading && provider.grades.isEmpty) {
+              return const Center(child: CircularProgressIndicator());
+            }
 
-          if (provider.errorMessage != null) {
-            return Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Text(
-                    provider.errorMessage!,
-                    style: const TextStyle(color: Colors.red),
-                    textAlign: TextAlign.center,
+            if (provider.errorMessage != null && provider.grades.isEmpty) {
+              return SingleChildScrollView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                child: SizedBox(
+                  height: MediaQuery.of(context).size.height * 0.7,
+                  child: Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Text(
+                          provider.errorMessage!,
+                          style: const TextStyle(color: Colors.red),
+                          textAlign: TextAlign.center,
+                        ),
+                        const SizedBox(height: 16),
+                        ElevatedButton(
+                          onPressed: () => provider.loadMyGrades(),
+                          child: const Text('Réessayer'),
+                        ),
+                      ],
+                    ),
                   ),
-                  const SizedBox(height: 16),
-                  ElevatedButton(
-                    onPressed: () => provider.loadMyGrades(),
-                    child: const Text('Réessayer'),
-                  ),
-                ],
-              ),
-            );
-          }
+                ),
+              );
+            }
 
-          if (provider.grades.isEmpty) {
-            return const Center(
-              child: Text('Aucune note disponible'),
-            );
-          }
+            if (provider.grades.isEmpty) {
+              return const SingleChildScrollView(
+                physics: AlwaysScrollableScrollPhysics(),
+                child: SizedBox(
+                  height: 500,
+                  child: Center(
+                    child: Text('Aucune note disponible'),
+                  ),
+                ),
+              );
+            }
 
           // Calculer la moyenne générale
           double totalPoints = 0;

@@ -5,8 +5,8 @@ import 'package:file_picker/file_picker.dart';
 import 'package:dio/dio.dart';
 import '../../../data/models/course_resource_model.dart';
 import '../../../data/models/module_model.dart';
-import '../../providers/resource_provider.dart';
-import '../../providers/module_provider.dart';
+import '../providers/resource_provider.dart';
+import '../providers/module_provider.dart';
 
 class ResourceFormDialog extends StatefulWidget {
   final CourseResourceModel? resource;

@@ -39,7 +39,7 @@ class StudentProfilePage extends StatelessWidget {
               style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
             ),
             Text(
-              user.roleDisplay,
+              user.roleDisplay ?? user.role,
               style: TextStyle(fontSize: 16, color: Colors.grey[600]),
             ),
             const SizedBox(height: 32),

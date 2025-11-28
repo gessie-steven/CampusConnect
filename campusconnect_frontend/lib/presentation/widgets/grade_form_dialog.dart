@@ -3,9 +3,9 @@ import 'package:provider/provider.dart';
 import '../../../data/models/grade_model.dart';
 import '../../../data/models/module_model.dart';
 import '../../../data/models/user_model.dart';
-import '../../providers/grade_provider.dart';
-import '../../providers/module_provider.dart';
-import '../../providers/user_provider.dart';
+import '../providers/grade_provider.dart';
+import '../providers/module_provider.dart';
+import '../providers/user_provider.dart';
 
 class GradeFormDialog extends StatefulWidget {
   final GradeModel? grade;
@@ -56,10 +56,8 @@ class _GradeFormDialogState extends State<GradeFormDialog> {
     final userProvider = Provider.of<UserProvider>(context, listen: false);
     final moduleProvider = Provider.of<ModuleProvider>(context, listen: false);
 
-    await Future.wait([
-      userProvider.loadUsers(role: 'student'),
-      moduleProvider.loadModules(),
-    ]);
+    await userProvider.loadUsers(role: 'student');
+    await moduleProvider.loadModules();
 
     setState(() {
       _students = userProvider.getUsersByRole('student');

@@ -97,34 +97,35 @@ class _CoursesPageState extends State<CoursesPage> {
           }
 
           return ListView.builder(
-          padding: const EdgeInsets.all(16),
-          itemCount: enrollmentProvider.enrollments.length,
-          itemBuilder: (context, index) {
-            final enrollment = enrollmentProvider.enrollments[index];
-            return Card(
-              margin: const EdgeInsets.only(bottom: 8),
-              child: ListTile(
-                leading: const Icon(Icons.book, color: Colors.blue),
-                title: Text(enrollment.moduleName ?? enrollment.moduleCode ?? ''),
-                subtitle: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text('Code: ${enrollment.moduleCode ?? ''}'),
-                    if (enrollment.grade != null)
-                      Text(
-                        'Note: ${enrollment.grade!.toStringAsFixed(2)}/20',
-                        style: const TextStyle(fontWeight: FontWeight.bold),
-                      ),
-                  ],
+            padding: const EdgeInsets.all(16),
+            itemCount: enrollmentProvider.enrollments.length,
+            itemBuilder: (context, index) {
+              final enrollment = enrollmentProvider.enrollments[index];
+              return Card(
+                margin: const EdgeInsets.only(bottom: 8),
+                child: ListTile(
+                  leading: const Icon(Icons.book, color: Colors.blue),
+                  title: Text(enrollment.moduleName ?? enrollment.moduleCode ?? ''),
+                  subtitle: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('Code: ${enrollment.moduleCode ?? ''}'),
+                      if (enrollment.grade != null)
+                        Text(
+                          'Note: ${enrollment.grade!.toStringAsFixed(2)}/20',
+                          style: const TextStyle(fontWeight: FontWeight.bold),
+                        ),
+                    ],
+                  ),
+                  trailing: enrollment.isActive
+                      ? const Icon(Icons.check_circle, color: Colors.green)
+                      : const Icon(Icons.cancel, color: Colors.red),
                 ),
-                trailing: enrollment.isActive
-                    ? const Icon(Icons.check_circle, color: Colors.green)
-                    : const Icon(Icons.cancel, color: Colors.red),
-              ),
-            );
-          },
-        );
-      },
+              );
+            },
+          );
+        },
+      ),
     );
   }
 
@@ -177,61 +178,68 @@ class _CoursesPageState extends State<CoursesPage> {
             .where((m) => m.isActive && !enrolledModuleIds.contains(m.id))
             .toList();
 
-        if (availableModules.isEmpty) {
-          return const Center(
-            child: Text('Aucun cours disponible'),
-          );
-        }
-
-        return ListView.builder(
-          padding: const EdgeInsets.all(16),
-          itemCount: availableModules.length,
-          itemBuilder: (context, index) {
-            final module = availableModules[index];
-            return Card(
-              margin: const EdgeInsets.only(bottom: 8),
-              child: ListTile(
-                leading: const Icon(Icons.school, color: Colors.blue),
-                title: Text(module.name),
-                subtitle: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text('Code: ${module.code}'),
-                    Text('Crédits: ${module.credits}'),
-                    if (module.teacherName != null)
-                      Text('Enseignant: ${module.teacherName}'),
-                    if (module.maxStudents != null)
-                      Text(
-                        'Places: ${module.enrolledStudentsCount}/${module.maxStudents}',
-                      ),
-                  ],
+          if (availableModules.isEmpty) {
+            return const SingleChildScrollView(
+              physics: AlwaysScrollableScrollPhysics(),
+              child: SizedBox(
+                height: 500,
+                child: Center(
+                  child: Text('Aucun cours disponible'),
                 ),
-                trailing: module.isFull
-                    ? const Text('Complet', style: TextStyle(color: Colors.red))
-                    : ElevatedButton(
-                        onPressed: () async {
-                          final success = await enrollmentProvider.enrollToModule(module.id);
-                          if (context.mounted) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content: Text(success
-                                    ? 'Inscription réussie'
-                                    : enrollmentProvider.errorMessage ?? 'Erreur'),
-                                backgroundColor: success ? Colors.green : Colors.red,
-                              ),
-                            );
-                            if (success) {
-                              enrollmentProvider.loadMyEnrollments();
-                            }
-                          }
-                        },
-                        child: const Text('S\'inscrire'),
-                      ),
               ),
             );
-          },
-        );
-      },
+          }
+
+          return ListView.builder(
+            padding: const EdgeInsets.all(16),
+            itemCount: availableModules.length,
+            itemBuilder: (context, index) {
+              final module = availableModules[index];
+              return Card(
+                margin: const EdgeInsets.only(bottom: 8),
+                child: ListTile(
+                  leading: const Icon(Icons.school, color: Colors.blue),
+                  title: Text(module.name),
+                  subtitle: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('Code: ${module.code}'),
+                      Text('Crédits: ${module.credits}'),
+                      if (module.teacherName != null)
+                        Text('Enseignant: ${module.teacherName}'),
+                      if (module.maxStudents != null)
+                        Text(
+                          'Places: ${module.enrolledStudentsCount}/${module.maxStudents}',
+                        ),
+                    ],
+                  ),
+                  trailing: module.isFull
+                      ? const Text('Complet', style: TextStyle(color: Colors.red))
+                      : ElevatedButton(
+                          onPressed: () async {
+                            final success = await enrollmentProvider.enrollToModule(module.id);
+                            if (context.mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text(success
+                                      ? 'Inscription réussie'
+                                      : enrollmentProvider.errorMessage ?? 'Erreur'),
+                                  backgroundColor: success ? Colors.green : Colors.red,
+                                ),
+                              );
+                              if (success) {
+                                enrollmentProvider.loadMyEnrollments();
+                              }
+                            }
+                          },
+                          child: const Text('S\'inscrire'),
+                        ),
+                ),
+              );
+            },
+          );
+        },
+      ),
     );
   }
 }
