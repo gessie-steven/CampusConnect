@@ -105,6 +105,7 @@
 			);
 			name = Products;
 			sourceTree = "<group>";
+			usesTabs = 0;
 		};
 		97C146F01CF9000F007C117D /* Runner */ = {
 			isa = PBXGroup;

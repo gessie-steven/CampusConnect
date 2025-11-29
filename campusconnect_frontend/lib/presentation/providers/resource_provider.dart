@@ -65,6 +65,31 @@ class ResourceProvider with ChangeNotifier {
     }
   }
 
+  Future<bool> createResourceWithUrl(Map<String, dynamic> data) async {
+    _isLoading = true;
+    _errorMessage = null;
+    notifyListeners();
+
+    try {
+      await resourceRepository.createResourceWithUrl(data);
+      await loadResources(); // Recharger la liste
+      _errorMessage = null;
+      return true;
+    } on ValidationFailure catch (e) {
+      _errorMessage = e.message;
+      return false;
+    } on ServerFailure catch (e) {
+      _errorMessage = e.message;
+      return false;
+    } catch (e) {
+      _errorMessage = 'Erreur inattendue: ${e.toString()}';
+      return false;
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
+
   Future<Map<String, dynamic>?> downloadResource(int id) async {
     _isLoading = true;
     _errorMessage = null;

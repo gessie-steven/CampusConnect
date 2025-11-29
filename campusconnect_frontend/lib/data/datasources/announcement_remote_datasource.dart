@@ -12,7 +12,7 @@ class AnnouncementRemoteDataSource {
     try {
       final queryParams = moduleId != null ? {'module': moduleId} : null;
       final response = await dio.get(
-        '${AppConstants.baseUrl}/announcements/my/',
+        'announcements/my/',
         queryParameters: queryParams,
       );
 
@@ -44,7 +44,7 @@ class AnnouncementRemoteDataSource {
       if (priority != null) queryParams['priority'] = priority;
 
       final response = await dio.get(
-        '${AppConstants.baseUrl}/announcements/',
+        'announcements/',
         queryParameters: queryParams.isEmpty ? null : queryParams,
       );
 
@@ -69,7 +69,7 @@ class AnnouncementRemoteDataSource {
   Future<AnnouncementModel> createAnnouncement(Map<String, dynamic> data) async {
     try {
       final response = await dio.post(
-        '${AppConstants.baseUrl}/announcements/',
+        'announcements/',
         data: data,
       );
 
@@ -79,25 +79,36 @@ class AnnouncementRemoteDataSource {
         throw ServerFailure('Erreur lors de la création de l\'annonce');
       }
     } on DioException catch (e) {
+      print('❌ Erreur Dio lors de la création de l\'annonce: ${e.message}');
       if (e.response != null) {
+        print('📊 Status code: ${e.response!.statusCode}');
+        print('📄 Response data: ${e.response!.data}');
         final errorData = e.response!.data;
         if (errorData is Map<String, dynamic>) {
           final errors = <String, String>{};
           errorData.forEach((key, value) {
             if (value is List && value.isNotEmpty) {
-              errors[key] = value.first as String;
+              errors[key] = value.first.toString();
+              print('⚠️ Erreur champ "$key": ${value.first}');
+            } else if (value is String) {
+              errors[key] = value;
+              print('⚠️ Erreur champ "$key": $value');
             }
           });
           if (errors.isNotEmpty) {
-            throw ValidationFailure(errors.values.first);
+            final errorMessage = errors.entries.map((e) => '${e.key}: ${e.value}').join(', ');
+            throw ValidationFailure(errorMessage);
           }
         }
-        throw ServerFailure('Erreur lors de la création de l\'annonce');
+        final errorMessage = errorData is String ? errorData : errorData.toString();
+        throw ServerFailure('Erreur lors de la création de l\'annonce: $errorMessage');
       } else {
-        throw NetworkFailure('Erreur de réseau');
+        print('❌ Erreur réseau: ${e.message}');
+        throw NetworkFailure('Erreur de réseau: ${e.message}');
       }
     } catch (e) {
       if (e is Failure) rethrow;
+      print('❌ Erreur inattendue: ${e.toString()}');
       throw ServerFailure('Erreur inattendue: ${e.toString()}');
     }
   }

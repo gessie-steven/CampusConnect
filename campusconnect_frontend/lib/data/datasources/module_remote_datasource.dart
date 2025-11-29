@@ -11,7 +11,7 @@ class ModuleRemoteDataSource {
   Future<List<ModuleModel>> getModules({Map<String, dynamic>? queryParams}) async {
     try {
       final response = await dio.get(
-        '${AppConstants.baseUrl}/modules/',
+        'modules/',
         queryParameters: queryParams,
       );
 
@@ -35,7 +35,7 @@ class ModuleRemoteDataSource {
 
   Future<ModuleModel> getModule(int id) async {
     try {
-      final response = await dio.get('${AppConstants.baseUrl}/modules/$id/');
+      final response = await dio.get('modules/$id/');
 
       if (response.statusCode == 200) {
         return ModuleModel.fromJson(response.data as Map<String, dynamic>);
@@ -57,7 +57,7 @@ class ModuleRemoteDataSource {
   Future<ModuleModel> createModule(Map<String, dynamic> data) async {
     try {
       final response = await dio.post(
-        '${AppConstants.baseUrl}/modules/',
+        'modules/',
         data: data,
       );
 
@@ -67,25 +67,44 @@ class ModuleRemoteDataSource {
         throw ServerFailure('Erreur lors de la création du module');
       }
     } on DioException catch (e) {
+      print('❌ Erreur Dio lors de la création du module: ${e.message}');
       if (e.response != null) {
+        print('📊 Status code: ${e.response!.statusCode}');
+        print('📄 Response data: ${e.response!.data}');
         final errorData = e.response!.data;
         if (errorData is Map<String, dynamic>) {
           final errors = <String, String>{};
           errorData.forEach((key, value) {
             if (value is List && value.isNotEmpty) {
-              errors[key] = value.first as String;
+              errors[key] = value.first.toString();
+              print('⚠️ Erreur champ "$key": ${value.first}');
+            } else if (value is String) {
+              errors[key] = value;
+              print('⚠️ Erreur champ "$key": $value');
+            } else if (value is Map) {
+              // Gérer les erreurs imbriquées
+              value.forEach((k, v) {
+                if (v is List && v.isNotEmpty) {
+                  errors['$key.$k'] = v.first.toString();
+                  print('⚠️ Erreur champ "$key.$k": ${v.first}');
+                }
+              });
             }
           });
           if (errors.isNotEmpty) {
-            throw ValidationFailure(errors.values.first);
+            final errorMessage = errors.entries.map((e) => '${e.key}: ${e.value}').join(', ');
+            throw ValidationFailure(errorMessage);
           }
         }
-        throw ServerFailure('Erreur lors de la création du module');
+        final errorMessage = errorData is String ? errorData : errorData.toString();
+        throw ServerFailure('Erreur lors de la création du module: $errorMessage');
       } else {
-        throw NetworkFailure('Erreur de réseau');
+        print('❌ Erreur réseau: ${e.message}');
+        throw NetworkFailure('Erreur de réseau: ${e.message}');
       }
     } catch (e) {
       if (e is Failure) rethrow;
+      print('❌ Erreur inattendue: ${e.toString()}');
       throw ServerFailure('Erreur inattendue: ${e.toString()}');
     }
   }
@@ -93,7 +112,7 @@ class ModuleRemoteDataSource {
   Future<ModuleModel> updateModule(int id, Map<String, dynamic> data) async {
     try {
       final response = await dio.patch(
-        '${AppConstants.baseUrl}/modules/$id/',
+        'modules/$id/',
         data: data,
       );
 
@@ -128,7 +147,7 @@ class ModuleRemoteDataSource {
 
   Future<void> deleteModule(int id) async {
     try {
-      final response = await dio.delete('${AppConstants.baseUrl}/modules/$id/');
+      final response = await dio.delete('modules/$id/');
 
       if (response.statusCode != 204 && response.statusCode != 200) {
         throw ServerFailure('Erreur lors de la suppression du module');

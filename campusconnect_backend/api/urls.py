@@ -58,10 +58,7 @@ urlpatterns = [
     path('auth/teacher-only/', teacher_only_view, name='teacher_only'),
     path('auth/admin-only/', admin_only_view, name='admin_only'),
     
-    # Routes pour les modules et inscriptions
-    path('', include(router.urls)),
-    
-    # Routes personnalisées pour les inscriptions
+    # Routes personnalisées pour les inscriptions (AVANT le router pour éviter les conflits)
     path('modules/<int:module_id>/enroll/', enroll_to_module, name='enroll_to_module'),
     path('modules/<int:module_id>/unenroll/', unenroll_from_module, name='unenroll_from_module'),
     path('enrollments/my/', my_enrollments, name='my_enrollments'),
@@ -80,5 +77,8 @@ urlpatterns = [
     
     # Routes personnalisées pour les notifications
     path('notifications/unread/', my_unread_notifications, name='my_unread_notifications'),
+    
+    # Routes pour les modules et inscriptions (router en dernier)
+    path('', include(router.urls)),
 ]
 

@@ -10,7 +10,7 @@ class EnrollmentRemoteDataSource {
 
   Future<List<EnrollmentModel>> getMyEnrollments() async {
     try {
-      final response = await dio.get('${AppConstants.baseUrl}/enrollments/my/');
+      final response = await dio.get('enrollments/my/');
 
       if (response.statusCode == 200) {
         final List<dynamic> data = response.data as List<dynamic>;
@@ -32,7 +32,7 @@ class EnrollmentRemoteDataSource {
 
   Future<EnrollmentModel> enrollToModule(int moduleId) async {
     try {
-      final response = await dio.post('${AppConstants.baseUrl}/modules/$moduleId/enroll/');
+      final response = await dio.post('modules/$moduleId/enroll/');
 
       if (response.statusCode == 201) {
         return EnrollmentModel.fromJson(response.data as Map<String, dynamic>);
@@ -58,7 +58,7 @@ class EnrollmentRemoteDataSource {
 
   Future<void> unenrollFromModule(int moduleId) async {
     try {
-      final response = await dio.post('${AppConstants.baseUrl}/modules/$moduleId/unenroll/');
+      final response = await dio.post('modules/$moduleId/unenroll/');
 
       if (response.statusCode != 200) {
         throw ServerFailure('Erreur lors de la désinscription');

@@ -26,7 +26,7 @@ class _AnnouncementFormDialogState extends State<AnnouncementFormDialog> {
   bool _isPinned = false;
   List<ModuleModel> _modules = [];
 
-  final List<String> _priorities = ['low', 'medium', 'high', 'urgent'];
+  final List<String> _priorities = ['low', 'normal', 'high', 'urgent'];
   final List<String> _targetRoles = ['student', 'teacher', 'admin'];
 
   @override
@@ -41,14 +41,22 @@ class _AnnouncementFormDialogState extends State<AnnouncementFormDialog> {
       _expiryDate = widget.announcement!.expiryDate;
       _isPinned = widget.announcement!.isPinned;
     } else {
-      _selectedPriority = 'medium';
+      _selectedPriority = 'normal';
     }
-    _loadModules();
+    // Charger les données après le build pour éviter setState() during build
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _loadModules();
+    });
   }
 
   Future<void> _loadModules() async {
+    if (!mounted) return;
+    
     final moduleProvider = Provider.of<ModuleProvider>(context, listen: false);
     await moduleProvider.loadModules();
+    
+    if (!mounted) return;
+    
     setState(() {
       _modules = moduleProvider.modules;
     });
@@ -230,7 +238,7 @@ class _AnnouncementFormDialogState extends State<AnnouncementFormDialog> {
                 'content': _contentController.text.trim(),
                 'module': _selectedModuleId,
                 'priority': _selectedPriority,
-                'target_role': _selectedTargetRole,
+                'target_audience': _selectedTargetRole,
                 'expiry_date': _expiryDate?.toIso8601String(),
                 'is_pinned': _isPinned,
               };
@@ -244,7 +252,9 @@ class _AnnouncementFormDialogState extends State<AnnouncementFormDialog> {
               }
 
               if (context.mounted) {
-                Navigator.pop(context);
+                if (success) {
+                  Navigator.pop(context);
+                }
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
                     content: Text(
@@ -252,9 +262,10 @@ class _AnnouncementFormDialogState extends State<AnnouncementFormDialog> {
                           ? widget.announcement == null
                               ? 'Annonce créée avec succès'
                               : 'Annonce modifiée avec succès'
-                          : provider.errorMessage ?? 'Erreur',
+                          : provider.errorMessage ?? 'Erreur lors de la sauvegarde',
                     ),
                     backgroundColor: success ? Colors.green : Colors.red,
+                    duration: Duration(seconds: success ? 2 : 5),
                   ),
                 );
               }
@@ -270,8 +281,8 @@ class _AnnouncementFormDialogState extends State<AnnouncementFormDialog> {
     switch (priority) {
       case 'low':
         return 'Basse';
-      case 'medium':
-        return 'Moyenne';
+      case 'normal':
+        return 'Normale';
       case 'high':
         return 'Haute';
       case 'urgent':

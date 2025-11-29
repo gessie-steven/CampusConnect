@@ -28,6 +28,16 @@ class ResourceRepository {
     }
   }
 
+  Future<CourseResourceModel> createResourceWithUrl(Map<String, dynamic> data) async {
+    try {
+      return await remoteDataSource.createResourceWithUrl(data);
+    } on Failure {
+      rethrow;
+    } catch (e) {
+      throw ServerFailure('Erreur lors de la création de la ressource: ${e.toString()}');
+    }
+  }
+
   Future<Map<String, dynamic>> downloadResource(int id) async {
     try {
       return await remoteDataSource.downloadResource(id);

@@ -1,11 +1,8 @@
-import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:cross_file/cross_file.dart';
-import '../../../data/models/grade_model.dart';
-import '../../../data/models/user_model.dart';
 import '../../providers/grade_provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../../core/services/pdf_service.dart';
@@ -141,124 +138,125 @@ class _GradesPageState extends State<GradesPage> {
               );
             }
 
-          // Calculer la moyenne générale
-          double totalPoints = 0;
-          double totalMaxPoints = 0;
-          for (var grade in provider.grades) {
-            totalPoints += grade.grade;
-            totalMaxPoints += grade.maxGrade;
-          }
-          final average = totalMaxPoints > 0 ? (totalPoints / totalMaxPoints) * 20 : 0.0;
+            // Calculer la moyenne générale
+            double totalPoints = 0;
+            double totalMaxPoints = 0;
+            for (var grade in provider.grades) {
+              totalPoints += grade.grade;
+              totalMaxPoints += grade.maxGrade;
+            }
+            final average = totalMaxPoints > 0 ? (totalPoints / totalMaxPoints) * 20 : 0.0;
 
-          return Column(
-            children: [
-              // Carte de moyenne générale
-              Card(
-                margin: const EdgeInsets.all(16),
-                color: Colors.blue.shade50,
-                child: Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceAround,
-                    children: [
-                      Column(
-                        children: [
-                          const Text(
-                            'Moyenne générale',
-                            style: TextStyle(fontSize: 14, color: Colors.grey),
-                          ),
-                          Text(
-                            average.toStringAsFixed(2),
-                            style: const TextStyle(
-                              fontSize: 32,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ],
-                      ),
-                      Column(
-                        children: [
-                          const Text(
-                            'Total notes',
-                            style: TextStyle(fontSize: 14, color: Colors.grey),
-                          ),
-                          Text(
-                            '${provider.grades.length}',
-                            style: const TextStyle(
-                              fontSize: 32,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-              // Liste des notes
-              Expanded(
-                child: ListView.builder(
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  itemCount: provider.grades.length,
-                  itemBuilder: (context, index) {
-                    final grade = provider.grades[index];
-                    return Card(
-                      margin: const EdgeInsets.only(bottom: 8),
-                      child: ListTile(
-                        leading: CircleAvatar(
-                          backgroundColor: _getGradeColor(grade.grade, grade.maxGrade),
-                          child: Text(
-                            grade.letterGrade ?? 'N/A',
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ),
-                        title: Text(grade.moduleName ?? grade.moduleCode ?? ''),
-                        subtitle: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
+            return Column(
+              children: [
+                // Carte de moyenne générale
+                Card(
+                  margin: const EdgeInsets.all(16),
+                  color: Colors.blue.shade50,
+                  child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceAround,
+                      children: [
+                        Column(
                           children: [
-                            Text('${grade.gradeTypeDisplay ?? grade.gradeType}'),
-                            Text(
-                              DateFormat('dd/MM/yyyy', 'fr_FR').format(grade.gradedDate),
-                              style: const TextStyle(fontSize: 12),
+                            const Text(
+                              'Moyenne générale',
+                              style: TextStyle(fontSize: 14, color: Colors.grey),
                             ),
-                            if (grade.comment != null && grade.comment!.isNotEmpty)
-                              Padding(
-                                padding: const EdgeInsets.only(top: 4),
-                                child: Text(
-                                  grade.comment!,
-                                  style: const TextStyle(fontStyle: FontStyle.italic),
-                                ),
-                              ),
-                          ],
-                        ),
-                        trailing: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          crossAxisAlignment: CrossAxisAlignment.end,
-                          children: [
                             Text(
-                              '${grade.grade.toStringAsFixed(2)}/${grade.maxGrade.toStringAsFixed(0)}',
+                              average.toStringAsFixed(2),
                               style: const TextStyle(
-                                fontSize: 18,
+                                fontSize: 32,
                                 fontWeight: FontWeight.bold,
                               ),
                             ),
-                            if (grade.percentage != null)
-                              Text(
-                                '${grade.percentage!.toStringAsFixed(1)}%',
-                                style: const TextStyle(fontSize: 12, color: Colors.grey),
-                              ),
                           ],
                         ),
-                      ),
-                    );
-                  },
+                        Column(
+                          children: [
+                            const Text(
+                              'Total notes',
+                              style: TextStyle(fontSize: 14, color: Colors.grey),
+                            ),
+                            Text(
+                              '${provider.grades.length}',
+                              style: const TextStyle(
+                                fontSize: 32,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
                 ),
-              ),
-            ],
-          ),
+                // Liste des notes
+                Expanded(
+                  child: ListView.builder(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    itemCount: provider.grades.length,
+                    itemBuilder: (context, index) {
+                      final grade = provider.grades[index];
+                      return Card(
+                        margin: const EdgeInsets.only(bottom: 8),
+                        child: ListTile(
+                          leading: CircleAvatar(
+                            backgroundColor: _getGradeColor(grade.grade, grade.maxGrade),
+                            child: Text(
+                              grade.letterGrade ?? 'N/A',
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                          title: Text(grade.moduleName ?? grade.moduleCode ?? ''),
+                          subtitle: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text('${grade.gradeTypeDisplay ?? grade.gradeType}'),
+                              Text(
+                                DateFormat('dd/MM/yyyy', 'fr_FR').format(grade.gradedDate),
+                                style: const TextStyle(fontSize: 12),
+                              ),
+                              if (grade.comment != null && grade.comment!.isNotEmpty)
+                                Padding(
+                                  padding: const EdgeInsets.only(top: 4),
+                                  child: Text(
+                                    grade.comment!,
+                                    style: const TextStyle(fontStyle: FontStyle.italic),
+                                  ),
+                                ),
+                            ],
+                          ),
+                          trailing: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            crossAxisAlignment: CrossAxisAlignment.end,
+                            children: [
+                              Text(
+                                '${grade.grade.toStringAsFixed(2)}/${grade.maxGrade.toStringAsFixed(0)}',
+                                style: const TextStyle(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              if (grade.percentage != null)
+                                Text(
+                                  '${grade.percentage!.toStringAsFixed(1)}%',
+                                  style: const TextStyle(fontSize: 12, color: Colors.grey),
+                                ),
+                            ],
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                ),
+              ],
+            );
+          },
         ),
       ),
     );

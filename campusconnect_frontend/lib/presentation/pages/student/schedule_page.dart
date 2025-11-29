@@ -82,68 +82,69 @@ class _SchedulePageState extends State<SchedulePage> {
               );
             }
 
-          // Grouper les sessions par date
-          final groupedSessions = <DateTime, List<CourseSessionModel>>{};
-          for (var session in provider.sessions) {
-            final date = DateTime(session.date.year, session.date.month, session.date.day);
-            groupedSessions.putIfAbsent(date, () => []).add(session);
-          }
+            // Grouper les sessions par date
+            final groupedSessions = <DateTime, List<CourseSessionModel>>{};
+            for (var session in provider.sessions) {
+              final date = DateTime(session.date.year, session.date.month, session.date.day);
+              groupedSessions.putIfAbsent(date, () => []).add(session);
+            }
 
-          final sortedDates = groupedSessions.keys.toList()..sort();
+            final sortedDates = groupedSessions.keys.toList()..sort();
 
-          return ListView.builder(
-            padding: const EdgeInsets.all(16),
-            itemCount: sortedDates.length,
-            itemBuilder: (context, index) {
-              final date = sortedDates[index];
-              final sessions = groupedSessions[date]!;
-              
-              return Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Padding(
-                    padding: EdgeInsets.only(bottom: 8, top: index > 0 ? 16 : 0),
-                    child: Text(
-                      DateFormat('EEEE d MMMM yyyy', 'fr_FR').format(date),
-                      style: const TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ),
-                  ...sessions.map((session) => Card(
-                    margin: const EdgeInsets.only(bottom: 8),
-                    child: ListTile(
-                      leading: CircleAvatar(
-                        backgroundColor: _getSessionTypeColor(session.sessionType),
-                        child: Icon(
-                          _getSessionTypeIcon(session.sessionType),
-                          color: Colors.white,
+            return ListView.builder(
+              padding: const EdgeInsets.all(16),
+              itemCount: sortedDates.length,
+              itemBuilder: (context, index) {
+                final date = sortedDates[index];
+                final sessions = groupedSessions[date]!;
+                
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Padding(
+                      padding: EdgeInsets.only(bottom: 8, top: index > 0 ? 16 : 0),
+                      child: Text(
+                        DateFormat('EEEE d MMMM yyyy', 'fr_FR').format(date),
+                        style: const TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
                         ),
                       ),
-                      title: Text(session.moduleCode ?? session.moduleName ?? ''),
-                      subtitle: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(session.moduleName ?? ''),
-                          const SizedBox(height: 4),
-                          Text(
-                            '${session.startTime.substring(0, 5)} - ${session.endTime.substring(0, 5)}',
-                            style: const TextStyle(fontWeight: FontWeight.bold),
-                          ),
-                          if (session.location != null)
-                            Text('📍 ${session.location}'),
-                        ],
-                      ),
-                      trailing: session.isOnline
-                          ? const Icon(Icons.videocam, color: Colors.blue)
-                          : null,
                     ),
-                  )),
-                ],
-              );
-            },
-          ),
+                    ...sessions.map((session) => Card(
+                      margin: const EdgeInsets.only(bottom: 8),
+                      child: ListTile(
+                        leading: CircleAvatar(
+                          backgroundColor: _getSessionTypeColor(session.sessionType),
+                          child: Icon(
+                            _getSessionTypeIcon(session.sessionType),
+                            color: Colors.white,
+                          ),
+                        ),
+                        title: Text(session.moduleCode ?? session.moduleName ?? ''),
+                        subtitle: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(session.moduleName ?? ''),
+                            const SizedBox(height: 4),
+                            Text(
+                              '${session.startTime.substring(0, 5)} - ${session.endTime.substring(0, 5)}',
+                              style: const TextStyle(fontWeight: FontWeight.bold),
+                            ),
+                            if (session.location != null)
+                              Text('📍 ${session.location}'),
+                          ],
+                        ),
+                        trailing: session.isOnline
+                            ? const Icon(Icons.videocam, color: Colors.blue)
+                            : null,
+                      ),
+                    )),
+                  ],
+                );
+              },
+            );
+          },
         ),
       ),
     );

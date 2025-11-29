@@ -37,9 +37,13 @@ import 'presentation/pages/student/student_home_page.dart';
 import 'presentation/pages/teacher/teacher_home_page.dart';
 import 'presentation/pages/admin_home_page.dart';
 import 'core/services/notification_service.dart';
+import 'package:intl/date_symbol_data_local.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  
+  // Initialiser le formatage de dates pour le français
+  await initializeDateFormatting('fr_FR', null);
   
   // Initialiser les notifications
   await NotificationService.initialize();

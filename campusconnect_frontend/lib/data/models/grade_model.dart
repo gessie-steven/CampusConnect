@@ -46,6 +46,16 @@ class GradeModel {
   });
 
   factory GradeModel.fromJson(Map<String, dynamic> json) {
+    // Helper function to parse number from string or num
+    double parseDouble(dynamic value) {
+      if (value == null) return 0.0;
+      if (value is num) return value.toDouble();
+      if (value is String) {
+        return double.parse(value);
+      }
+      throw FormatException('Cannot parse $value as double');
+    }
+
     return GradeModel(
       id: json['id'] as int,
       studentId: json['student'] as int,
@@ -57,10 +67,10 @@ class GradeModel {
       moduleName: json['module_name'] as String?,
       gradeType: json['grade_type'] as String,
       gradeTypeDisplay: json['grade_type_display'] as String?,
-      grade: (json['grade'] as num).toDouble(),
-      maxGrade: (json['max_grade'] as num).toDouble(),
+      grade: parseDouble(json['grade']),
+      maxGrade: parseDouble(json['max_grade']),
       percentage: json['percentage'] != null
-          ? (json['percentage'] as num).toDouble()
+          ? parseDouble(json['percentage'])
           : null,
       letterGrade: json['letter_grade'] as String?,
       comment: json['comment'] as String?,

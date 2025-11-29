@@ -19,7 +19,7 @@ class _SplashPageState extends State<SplashPage> {
 
   Future<void> _checkAuthAndNavigate() async {
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
-    await authProvider.checkAuthStatus();
+    await authProvider.loadUser();
 
     if (!mounted) return;
 

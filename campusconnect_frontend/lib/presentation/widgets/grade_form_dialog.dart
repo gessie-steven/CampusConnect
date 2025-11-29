@@ -49,16 +49,23 @@ class _GradeFormDialogState extends State<GradeFormDialog> {
     } else {
       _maxGradeController.text = '20';
     }
-    _loadData();
+    // Charger les données après le build pour éviter setState() during build
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _loadData();
+    });
   }
 
   Future<void> _loadData() async {
+    if (!mounted) return;
+    
     final userProvider = Provider.of<UserProvider>(context, listen: false);
     final moduleProvider = Provider.of<ModuleProvider>(context, listen: false);
 
     await userProvider.loadUsers(role: 'student');
     await moduleProvider.loadModules();
 
+    if (!mounted) return;
+    
     setState(() {
       _students = userProvider.getUsersByRole('student');
       _modules = moduleProvider.modules;
@@ -225,6 +232,17 @@ class _GradeFormDialogState extends State<GradeFormDialog> {
           onPressed: () async {
             if (_formKey.currentState!.validate()) {
               final provider = Provider.of<GradeProvider>(context, listen: false);
+              // Vérifier que tous les champs requis sont remplis
+              if (_selectedStudentId == null || _selectedModuleId == null || _selectedGradeType == null) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Veuillez remplir tous les champs requis'),
+                    backgroundColor: Colors.red,
+                  ),
+                );
+                return;
+              }
+
               final data = {
                 'student': _selectedStudentId,
                 'module': _selectedModuleId,
@@ -244,7 +262,9 @@ class _GradeFormDialogState extends State<GradeFormDialog> {
               }
 
               if (context.mounted) {
-                Navigator.pop(context);
+                if (success) {
+                  Navigator.pop(context);
+                }
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
                     content: Text(
@@ -252,9 +272,10 @@ class _GradeFormDialogState extends State<GradeFormDialog> {
                           ? widget.grade == null
                               ? 'Note ajoutée avec succès'
                               : 'Note modifiée avec succès'
-                          : provider.errorMessage ?? 'Erreur',
+                          : provider.errorMessage ?? 'Erreur lors de la sauvegarde',
                     ),
                     backgroundColor: success ? Colors.green : Colors.red,
+                    duration: Duration(seconds: success ? 2 : 5),
                   ),
                 );
               }

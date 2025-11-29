@@ -55,21 +55,6 @@ class _StudentHomePageState extends State<StudentHomePage> {
           ),
         ],
       ),
-      appBar: AppBar(
-        title: const Text('CampusConnect'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.logout),
-            onPressed: () async {
-              final authProvider = Provider.of<AuthProvider>(context, listen: false);
-              await authProvider.logout();
-              if (context.mounted) {
-                Navigator.pushReplacementNamed(context, AppRoutes.login);
-              }
-            },
-          ),
-        ],
-      ),
     );
   }
 }

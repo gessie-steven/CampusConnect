@@ -50,12 +50,20 @@ class _ResourceFormDialogState extends State<ResourceFormDialog> {
     } else {
       _selectedResourceType = 'other';
     }
-    _loadModules();
+    // Charger les données après le build pour éviter setState() during build
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _loadModules();
+    });
   }
 
   Future<void> _loadModules() async {
+    if (!mounted) return;
+    
     final moduleProvider = Provider.of<ModuleProvider>(context, listen: false);
     await moduleProvider.loadModules();
+    
+    if (!mounted) return;
+    
     setState(() {
       _modules = moduleProvider.modules;
     });
@@ -186,8 +194,9 @@ class _ResourceFormDialogState extends State<ResourceFormDialog> {
                     if (value == null || value.isEmpty) {
                       return 'L\'URL est requise pour les liens';
                     }
-                    if (!Uri.tryParse(value)!.hasScheme) {
-                      return 'URL invalide';
+                    final uri = Uri.tryParse(value);
+                    if (uri == null || !uri.hasScheme) {
+                      return 'URL invalide (doit commencer par http:// ou https://)';
                     }
                     return null;
                   },
@@ -256,11 +265,20 @@ class _ResourceFormDialogState extends State<ResourceFormDialog> {
                   'external_url': _externalUrlController.text.trim(),
                   'is_public': _isPublic,
                 };
-                // TODO: Créer une méthode pour créer une ressource avec URL
+
+                final success = await provider.createResourceWithUrl(data);
+
                 if (context.mounted) {
                   Navigator.pop(context);
                   ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Fonctionnalité à implémenter')),
+                    SnackBar(
+                      content: Text(
+                        success
+                            ? 'Ressource ajoutée avec succès'
+                            : provider.errorMessage ?? 'Erreur',
+                      ),
+                      backgroundColor: success ? Colors.green : Colors.red,
+                    ),
                   );
                 }
               } else if (_selectedFile != null) {

@@ -11,7 +11,7 @@ class AuthRemoteDataSource {
   Future<Map<String, dynamic>> login(String username, String password) async {
     try {
       final response = await dio.post(
-        '${AppConstants.baseUrl}auth/login/',
+        'auth/login/',
         data: {
           'username': username,
           'password': password,
@@ -39,7 +39,7 @@ class AuthRemoteDataSource {
 
   Future<UserModel> getMe() async {
     try {
-      final response = await dio.get('${AppConstants.baseUrl}auth/me/');
+      final response = await dio.get('auth/me/');
 
       if (response.statusCode == 200) {
         return UserModel.fromJson(response.data as Map<String, dynamic>);
@@ -63,7 +63,7 @@ class AuthRemoteDataSource {
   Future<Map<String, dynamic>> register(Map<String, dynamic> data) async {
     try {
       final response = await dio.post(
-        '${AppConstants.baseUrl}auth/register/',
+        'auth/register/',
         data: data,
       );
 

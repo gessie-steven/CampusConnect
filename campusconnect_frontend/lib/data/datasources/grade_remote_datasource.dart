@@ -12,7 +12,7 @@ class GradeRemoteDataSource {
     try {
       final queryParams = moduleId != null ? {'module': moduleId} : null;
       final response = await dio.get(
-        '${AppConstants.baseUrl}/grades/my/',
+        'grades/my/',
         queryParameters: queryParams,
       );
 
@@ -41,7 +41,7 @@ class GradeRemoteDataSource {
       if (studentId != null) queryParams['student'] = studentId;
 
       final response = await dio.get(
-        '${AppConstants.baseUrl}/grades/',
+        'grades/',
         queryParameters: queryParams.isEmpty ? null : queryParams,
       );
 
@@ -66,7 +66,7 @@ class GradeRemoteDataSource {
   Future<GradeModel> createGrade(Map<String, dynamic> data) async {
     try {
       final response = await dio.post(
-        '${AppConstants.baseUrl}/grades/',
+        'grades/',
         data: data,
       );
 
@@ -76,25 +76,36 @@ class GradeRemoteDataSource {
         throw ServerFailure('Erreur lors de la création de la note');
       }
     } on DioException catch (e) {
+      print('❌ Erreur Dio lors de la création de la note: ${e.message}');
       if (e.response != null) {
+        print('📊 Status code: ${e.response!.statusCode}');
+        print('📄 Response data: ${e.response!.data}');
         final errorData = e.response!.data;
         if (errorData is Map<String, dynamic>) {
           final errors = <String, String>{};
           errorData.forEach((key, value) {
             if (value is List && value.isNotEmpty) {
-              errors[key] = value.first as String;
+              errors[key] = value.first.toString();
+              print('⚠️ Erreur champ "$key": ${value.first}');
+            } else if (value is String) {
+              errors[key] = value;
+              print('⚠️ Erreur champ "$key": $value');
             }
           });
           if (errors.isNotEmpty) {
-            throw ValidationFailure(errors.values.first);
+            final errorMessage = errors.entries.map((e) => '${e.key}: ${e.value}').join(', ');
+            throw ValidationFailure(errorMessage);
           }
         }
-        throw ServerFailure('Erreur lors de la création de la note');
+        final errorMessage = errorData is String ? errorData : errorData.toString();
+        throw ServerFailure('Erreur lors de la création de la note: $errorMessage');
       } else {
-        throw NetworkFailure('Erreur de réseau');
+        print('❌ Erreur réseau: ${e.message}');
+        throw NetworkFailure('Erreur de réseau: ${e.message}');
       }
     } catch (e) {
       if (e is Failure) rethrow;
+      print('❌ Erreur inattendue: ${e.toString()}');
       throw ServerFailure('Erreur inattendue: ${e.toString()}');
     }
   }
@@ -102,7 +113,7 @@ class GradeRemoteDataSource {
   Future<GradeModel> updateGrade(int id, Map<String, dynamic> data) async {
     try {
       final response = await dio.patch(
-        '${AppConstants.baseUrl}/grades/$id/',
+        'grades/$id/',
         data: data,
       );
 

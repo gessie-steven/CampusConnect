@@ -18,7 +18,7 @@ class SessionRemoteDataSource {
       if (dateTo != null) queryParams['date_to'] = dateTo;
 
       final response = await dio.get(
-        '${AppConstants.baseUrl}/schedule/my/',
+        'schedule/my/',
         queryParameters: queryParams.isEmpty ? null : queryParams,
       );
 
@@ -52,7 +52,7 @@ class SessionRemoteDataSource {
       if (dateTo != null) queryParams['date_to'] = dateTo;
 
       final response = await dio.get(
-        '${AppConstants.baseUrl}/sessions/',
+        'sessions/',
         queryParameters: queryParams.isEmpty ? null : queryParams,
       );
 
@@ -77,7 +77,7 @@ class SessionRemoteDataSource {
   Future<CourseSessionModel> createSession(Map<String, dynamic> data) async {
     try {
       final response = await dio.post(
-        '${AppConstants.baseUrl}/sessions/',
+        'sessions/',
         data: data,
       );
 

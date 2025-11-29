@@ -39,12 +39,20 @@ class _ModuleFormDialogState extends State<ModuleFormDialog> {
       _selectedTeacherId = widget.module!.teacherId;
       _isActive = widget.module!.isActive;
     }
-    _loadTeachers();
+    // Charger les données après le build pour éviter setState() during build
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _loadTeachers();
+    });
   }
 
   Future<void> _loadTeachers() async {
+    if (!mounted) return;
+    
     final userProvider = Provider.of<UserProvider>(context, listen: false);
     await userProvider.loadUsers(role: 'teacher');
+    
+    if (!mounted) return;
+    
     setState(() {
       _teachers = userProvider.getUsersByRole('teacher');
     });
@@ -199,18 +207,18 @@ class _ModuleFormDialogState extends State<ModuleFormDialog> {
             if (_formKey.currentState!.validate()) {
               final provider = Provider.of<ModuleProvider>(context, listen: false);
               final data = {
-                'code': _codeController.text.trim(),
+                'code': _codeController.text.trim().toUpperCase(),
                 'name': _nameController.text.trim(),
                 'description': _descriptionController.text.trim().isEmpty
                     ? null
                     : _descriptionController.text.trim(),
-                'credits': int.parse(_creditsController.text),
+                'credits': int.parse(_creditsController.text.trim()),
                 'semester': _semesterController.text.trim().isEmpty
                     ? null
                     : _semesterController.text.trim(),
                 'max_students': _maxStudentsController.text.trim().isEmpty
                     ? null
-                    : int.parse(_maxStudentsController.text),
+                    : int.tryParse(_maxStudentsController.text.trim()),
                 'teacher': _selectedTeacherId,
                 'is_active': _isActive,
               };
@@ -223,7 +231,9 @@ class _ModuleFormDialogState extends State<ModuleFormDialog> {
               }
 
               if (context.mounted) {
-                Navigator.pop(context);
+                if (success) {
+                  Navigator.pop(context);
+                }
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
                     content: Text(
@@ -231,9 +241,10 @@ class _ModuleFormDialogState extends State<ModuleFormDialog> {
                           ? widget.module == null
                               ? 'Module créé avec succès'
                               : 'Module modifié avec succès'
-                          : provider.errorMessage ?? 'Erreur',
+                          : provider.errorMessage ?? 'Erreur lors de la sauvegarde',
                     ),
                     backgroundColor: success ? Colors.green : Colors.red,
+                    duration: Duration(seconds: success ? 2 : 5),
                   ),
                 );
               }

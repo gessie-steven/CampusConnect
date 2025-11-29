@@ -12,7 +12,7 @@ class UserRemoteDataSource {
     try {
       final queryParams = role != null ? {'role': role} : null;
       final response = await dio.get(
-        '${AppConstants.baseUrl}users/',
+        'users/',
         queryParameters: queryParams,
       );
 
@@ -36,7 +36,7 @@ class UserRemoteDataSource {
 
   Future<UserModel> getUser(int id) async {
     try {
-      final response = await dio.get('${AppConstants.baseUrl}users/$id/');
+      final response = await dio.get('users/$id/');
 
       if (response.statusCode == 200) {
         return UserModel.fromJson(response.data as Map<String, dynamic>);
@@ -58,7 +58,7 @@ class UserRemoteDataSource {
   Future<UserModel> createUser(Map<String, dynamic> data) async {
     try {
       final response = await dio.post(
-        '${AppConstants.baseUrl}users/',
+        'users/',
         data: data,
       );
 
@@ -94,7 +94,7 @@ class UserRemoteDataSource {
   Future<UserModel> updateUser(int id, Map<String, dynamic> data) async {
     try {
       final response = await dio.patch(
-        '${AppConstants.baseUrl}users/$id/',
+        'users/$id/',
         data: data,
       );
 
@@ -117,7 +117,7 @@ class UserRemoteDataSource {
 
   Future<void> deleteUser(int id) async {
     try {
-      final response = await dio.delete('${AppConstants.baseUrl}users/$id/');
+      final response = await dio.delete('users/$id/');
 
       if (response.statusCode != 204 && response.statusCode != 200) {
         throw ServerFailure('Erreur lors de la suppression de l\'utilisateur');

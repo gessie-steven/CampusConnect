@@ -28,7 +28,13 @@ class DioClient {
           final token = await storage.read(key: AppConstants.accessTokenKey);
           if (token != null) {
             options.headers['Authorization'] = 'Bearer $token';
+            print('🔑 Token ajouté aux headers: ${token.substring(0, 20)}...');
+          } else {
+            print('⚠️ Aucun token trouvé dans le stockage');
           }
+          print('📤 Requête ${options.method} ${options.baseUrl}${options.path}');
+          print('📦 Données: ${options.data}');
+          print('📋 Headers: ${options.headers}');
           return handler.next(options);
         },
         onError: (error, handler) async {

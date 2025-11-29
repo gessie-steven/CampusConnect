@@ -37,17 +37,50 @@ User = get_user_model()
 
 class UserViewSet(viewsets.ModelViewSet):
     """
-    ViewSet pour la gestion des utilisateurs (admin seulement)
+    ViewSet pour la gestion des utilisateurs
+    - Admin : accès complet
+    - Enseignant : peut voir les étudiants (pour créer des notes)
     """
     queryset = User.objects.all()
     serializer_class = UserSerializer
-    permission_classes = [IsAuthenticated, IsAdmin]
+    permission_classes = [IsAuthenticated]
+
+    def get_permissions(self):
+        """
+        Les enseignants peuvent seulement lister les étudiants (pour créer des notes)
+        Les admins ont un accès complet
+        """
+        if self.action in ['list']:
+            user = self.request.user
+            if user.role == 'teacher':
+                # Les enseignants peuvent lister les étudiants
+                return [IsAuthenticated()]
+            elif user.role == 'admin':
+                return [IsAuthenticated()]
+            return [IsAdmin()]
+        else:
+            # Pour create, update, delete, seul l'admin peut
+            return [IsAdmin()]
 
     def get_queryset(self):
         queryset = User.objects.all()
+        user = self.request.user
         role = self.request.query_params.get('role', None)
-        if role:
-            queryset = queryset.filter(role=role)
+        
+        # Les enseignants ne peuvent voir que les étudiants
+        if user.role == 'teacher':
+            queryset = queryset.filter(role='student')
+            # Si un rôle est spécifié, ignorer si ce n'est pas 'student'
+            if role and role != 'student':
+                queryset = queryset.none()
+        # Les admins voient tout
+        elif user.role == 'admin':
+            if role:
+                queryset = queryset.filter(role=role)
+        else:
+            # Pour les autres rôles, retourner une queryset vide
+            queryset = queryset.none()
+        
         return queryset.order_by('-date_joined')
 
 

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../../data/models/module_model.dart';
 import '../../providers/module_provider.dart';
+import '../../widgets/module_form_dialog.dart';
 
 class TeacherModulesPage extends StatefulWidget {
   const TeacherModulesPage({super.key});
@@ -28,9 +29,9 @@ class _TeacherModulesPageState extends State<TeacherModulesPage> {
           IconButton(
             icon: const Icon(Icons.add),
             onPressed: () {
-              // TODO: Navigate to create module page
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Fonctionnalité à venir')),
+              showDialog(
+                context: context,
+                builder: (context) => const ModuleFormDialog(),
               );
             },
           ),
